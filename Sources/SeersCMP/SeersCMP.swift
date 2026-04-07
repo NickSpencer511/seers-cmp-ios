@@ -129,7 +129,7 @@ public final class SeersCMP {
     // MARK: - Config fetch
 
     private func fetchConfig(sdkKey: String, completion: @escaping (SeersCMPConfig?) -> Void) {
-        let cdnUrl = URL(string: "https://cdn.seersco.com/mobile/configs/\(sdkKey).json")!
+        let cdnUrl = URL(string: "https://cdn.consents.dev/mobile/configs/\(sdkKey).json")!
         URLSession.shared.dataTask(with: cdnUrl) { data, response, _ in
             if let data = data,
                let config = try? JSONDecoder().decode(SeersCMPConfig.self, from: data) {

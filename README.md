@@ -6,7 +6,7 @@ Seers Consent Management Platform SDK for iOS.
 
 ### Swift Package Manager (Xcode)
 1. In Xcode → **File → Add Packages**
-2. Enter URL: `https://github.com/seersco/seers-cmp-ios`
+2. Enter URL: `https://github.com/NickSpencer511/seers-cmp-ios`
 3. Select version `1.0.0`
 
 ### CocoaPods
