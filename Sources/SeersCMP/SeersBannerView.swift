@@ -21,12 +21,25 @@ public struct SeersBannerView: View {
     private var agreeText:    Color { Color(hex: banner?.agreeTextColor     ?? "#ffffff") }
     private var declineColor: Color { Color(hex: banner?.disagreeBtnColor   ?? "#1a1a2e") }
     private var declineText:  Color { Color(hex: banner?.disagreeTextColor  ?? "#ffffff") }
-    private var prefColor:    Color { Color(hex: banner?.preferencesBtnColor ?? "transparent") }
-    private var prefText:     Color { Color(hex: banner?.preferencesTextColor ?? "#3b6ef8") }
+    // prefFullStyle uses body_text_color for colour and border — matches Flutter _prefClr => _bodyClr
     private var bodyColor:    Color { Color(hex: banner?.bodyTextColor      ?? "#1a1a1a") }
+    private var prefText:     Color { bodyColor }
+
+    // Font size — read from dashboard exactly like Flutter
+    private var fs: CGFloat       { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
+    private var titleFs: CGFloat  { fs + 2 }
+
+    // Button radius — matches Flutter _btnR
+    private var btnRadius: CGFloat {
+        let t = banner?.buttonType ?? "default"
+        if t.contains("rounded") { return 20 }
+        if t.contains("flat")    { return 0  }
+        return 6
+    }
+    private var isStroke: Bool { (banner?.buttonType ?? "").contains("stroke") }
 
     public var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack(alignment: position == "top" ? .top : .bottom) {
             // Dimmed overlay
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
@@ -37,65 +50,167 @@ public struct SeersBannerView: View {
                     isPresented: $isPresented
                 )
                 .transition(.move(edge: .bottom))
+            } else if mobileTemplate == "dialog" {
+                // ── DIALOG — centered modal ──
+                dialogBanner
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            } else if mobileTemplate == "bottom_sheet" {
+                // ── BOTTOM SHEET ──
+                bottomSheetBanner
+                    .transition(.move(edge: position == "top" ? .top : .bottom))
             } else {
-                // Main banner — popup style (matches web design)
-                VStack(spacing: 0) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Body text
-                        Text(lang?.body ?? "We use cookies to personalize content and ads, to provide social media features and to analyze our traffic.")
-                            .font(.system(size: 13))
-                            .foregroundColor(bodyColor)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        // Cookie settings (outline)
-                        Button(action: { withAnimation { showPreferences = true } }) {
-                            Text(lang?.btnPreferenceTitle ?? "Cookie settings")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(prefText)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(prefText, lineWidth: 1.5))
-                        }
-
-                        // Disable All (dark)
-                        if dialogue?.allowReject ?? true {
-                            Button(action: { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }) {
-                                Text(lang?.btnDisagreeTitle ?? "Disable All")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(declineText)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(declineColor)
-                                    .cornerRadius(6)
-                            }
-                        }
-
-                        // Allow All (primary)
-                        Button(action: { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }) {
-                            Text(lang?.btnAgreeTitle ?? "Allow All")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(agreeText)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(agreeColor)
-                                .cornerRadius(6)
-                        }
-
-                        if dialogue?.poweredBy ?? true {
-                            Text("Powered by Seers")
-                                .font(.system(size: 10))
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-                    }
-                    .padding(20)
-                    .background(bgColor)
-                    .cornerRadius(16, corners: [.topLeft, .topRight])
-                }
-                .transition(.move(edge: .bottom))
+                // ── POPUP (default) ──
+                popupBanner
+                    .transition(.move(edge: position == "top" ? .top : .bottom))
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showPreferences)
+    }
+
+    // ── Popup — 3 stacked buttons, no title ──
+    private var popupBanner: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(lang?.body ?? "We use cookies to personalize content and ads, to provide social media features and to analyze our traffic.")
+                    .font(.system(size: fs))
+                    .foregroundColor(bodyColor)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 2)
+
+                outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
+                if dialogue?.allowReject ?? true {
+                    darkBtn(lang?.btnDisagreeTitle ?? "Disable All") { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }
+                }
+                primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
+
+                if dialogue?.poweredBy ?? true {
+                    Text("Powered by Seers")
+                        .font(.system(size: fs * 0.7))
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+            .padding(12)
+            .background(bgColor)
+            .cornerRadius(12, corners: position == "top" ? [.bottomLeft, .bottomRight] : [.topLeft, .topRight])
+        }
+    }
+
+    // ── Bottom Sheet — handle + title + body + row buttons + pref full ──
+    private var bottomSheetBanner: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Handle (layout=rounded only)
+                if (banner?.layout ?? "default") == "rounded" {
+                    Capsule()
+                        .fill(Color(hex: "#cccccc"))
+                        .frame(width: 32, height: 4)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 6)
+                }
+                Text(lang?.title ?? "We use cookies")
+                    .font(.system(size: titleFs, weight: .bold))
+                    .foregroundColor(Color(hex: banner?.titleTextColor ?? "#1a1a1a"))
+                    .padding(.bottom, 4)
+                Text(lang?.body ?? "We use cookies to improve your experience.")
+                    .font(.system(size: fs))
+                    .foregroundColor(bodyColor)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 7)
+
+                // btn-row-primary
+                HStack(spacing: 4) {
+                    if dialogue?.allowReject ?? true {
+                        Button(action: { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }) {
+                            Text(lang?.btnDisagreeTitle ?? "Decline")
+                                .font(.system(size: fs, weight: .semibold))
+                                .foregroundColor(declineText)
+                                .frame(maxWidth: .infinity).padding(.vertical, 4)
+                                .background(declineColor).cornerRadius(btnRadius)
+                        }
+                    }
+                    Button(action: { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }) {
+                        Text(lang?.btnAgreeTitle ?? "Accept All")
+                            .font(.system(size: fs, weight: .semibold))
+                            .foregroundColor(agreeText)
+                            .frame(maxWidth: .infinity).padding(.vertical, 4)
+                            .background(agreeColor).cornerRadius(btnRadius)
+                    }
+                }
+                .padding(.bottom, 4)
+
+                outlineBtn(lang?.btnPreferenceTitle ?? "Manage Preferences") { withAnimation { showPreferences = true } }
+
+                if dialogue?.poweredBy ?? true {
+                    Text("Powered by Seers")
+                        .font(.system(size: fs * 0.7)).foregroundColor(.gray)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(bgColor)
+            .cornerRadius(14, corners: position == "top" ? [.bottomLeft, .bottomRight] : [.topLeft, .topRight])
+        }
+    }
+
+    // ── Dialog — centered modal ──
+    private var dialogBanner: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(lang?.title ?? "We use cookies")
+                .font(.system(size: titleFs, weight: .bold))
+                .foregroundColor(Color(hex: banner?.titleTextColor ?? "#1a1a1a"))
+            Text(lang?.body ?? "We use cookies to improve your experience.")
+                .font(.system(size: fs)).foregroundColor(bodyColor)
+                .fixedSize(horizontal: false, vertical: true)
+            outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
+            if dialogue?.allowReject ?? true {
+                darkBtn(lang?.btnDisagreeTitle ?? "Disable All") { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }
+            }
+            primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
+        }
+        .padding(12)
+        .background(bgColor)
+        .cornerRadius(dialogRadius)
+        .shadow(color: .black.opacity(0.22), radius: 24)
+        .frame(width: UIScreen.main.bounds.width * 0.88)
+    }
+
+    // ── Shared button builders ──
+    private func outlineBtn(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).font(.system(size: fs, weight: .semibold)).foregroundColor(prefText)
+                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .overlay(RoundedRectangle(cornerRadius: btnRadius).stroke(prefText, lineWidth: 1.5))
+        }
+    }
+
+    private func darkBtn(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).font(.system(size: fs, weight: .semibold)).foregroundColor(declineText)
+                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .background(declineColor).cornerRadius(btnRadius)
+        }
+    }
+
+    private func primaryBtn(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).font(.system(size: fs, weight: .semibold))
+                .foregroundColor(isStroke ? agreeColor : agreeText)
+                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .background(isStroke ? Color.clear : agreeColor).cornerRadius(btnRadius)
+                .overlay(isStroke ? RoundedRectangle(cornerRadius: btnRadius).stroke(agreeColor, lineWidth: 1) : nil)
+        }
+    }
+
+    // ── Helpers ──
+    private var mobileTemplate: String { dialogue?.mobileTemplate ?? "popup" }
+    private var position: String       { banner?.position ?? "bottom" }
+
+    private var dialogRadius: CGFloat {
+        let lay = banner?.layout ?? "default"
+        if lay == "rounded" { return 20 }
+        if lay == "flat"    { return 0  }
+        return 10
     }
 
     private func saveConsent(value: String, pref: Bool, stat: Bool, mkt: Bool) {
@@ -238,10 +353,10 @@ struct SeersPreferencesView: View {
 
     private func descriptionFor(key: String) -> String {
         switch key {
-        case "necessary":   return "Required for the website to function. Cannot be switched off."
-        case "preferences": return "Allow the website to remember choices you make."
-        case "statistics":  return "Help us understand how visitors interact with the website."
-        case "marketing":   return "Used to track visitors and display relevant advertisements."
+        case "necessary":   return lang?.necessoryBody  ?? "Required for the website to function. Cannot be switched off."
+        case "preferences": return lang?.preferenceBody ?? "Allow the website to remember choices you make."
+        case "statistics":  return lang?.statisticsBody ?? "Help us understand how visitors interact with the website."
+        case "marketing":   return lang?.marketingBody  ?? "Used to track visitors and display relevant advertisements."
         default:            return ""
         }
     }

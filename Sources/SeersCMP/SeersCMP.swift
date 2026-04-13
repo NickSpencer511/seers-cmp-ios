@@ -53,6 +53,40 @@ public final class SeersCMP {
     }
 
     public static func shouldBlock(_ identifier: String) -> Bool { shared.checkShouldBlock(identifier).blocked }
+
+    /// Regulation type derived from region API response.
+    public static var regulation: String { shared._lastPayload?.regulation ?? "gdpr" }
+    public static var isGdpr: Bool { regulation == "gdpr" }
+    public static var isCcpa: Bool { regulation == "ccpa" }
+    public static var isNone: Bool { regulation == "none" }
+
+    /// Call BEFORE initialising any third-party SDK.
+    /// GDPR (region_selection 1|3) → pre-block until consent given.
+    /// CCPA (region_selection 2)   → NOT pre-blocked; block only after explicit opt-out.
+    /// none (region_selection 0)   → never block.
+    ///
+    ///     SeersCMP.shouldBlockNow("com.google.firebase.analytics") { blocked in
+    ///         if !blocked { FirebaseApp.configure() }
+    ///     }
+    public static func shouldBlockNow(_ identifier: String, completion: @escaping (Bool) -> Void) {
+        if isNone { completion(false); return }
+
+        let stored = shared.loadStoredConsent(sdkKey: shared.settingsId ?? "")
+
+        if let consent = stored, !shared.isExpired(consent) {
+            completion(shared.checkBlockWithConsent(identifier, consent: consent))
+            return
+        }
+
+        // No consent yet:
+        if isGdpr {
+            // GDPR → pre-block everything in block list
+            completion(shared.checkShouldBlock(identifier).blocked)
+        } else {
+            // CCPA → don't pre-block
+            completion(false)
+        }
+    }
     public static func getConsentMap() -> SeersConsentMap { shared.buildConsentMap() }
     public static func getConsent() -> SeersConsent? { guard let id = shared.settingsId else { return nil }; return shared.loadStoredConsent(sdkKey: id) }
     public static func saveConsent(value: String, preferences: Bool, statistics: Bool, marketing: Bool) {
@@ -244,16 +278,47 @@ public final class SeersCMP {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = ["sdk_key": sdkKey, "platform": config?.platform ?? "ios",
-            "consent": consent.value, "categories": ["necessary": consent.necessary,
-            "preferences": consent.preferences, "statistics": consent.statistics, "marketing": consent.marketing],
-            "timestamp": consent.timestamp]
+        var body: [String: Any] = [
+            "sdk_key":    sdkKey,
+            "platform":   config?.platform ?? "ios",
+            "consent":    consent.value,
+            "categories": [
+                "necessary":   consent.necessary,
+                "preferences": consent.preferences,
+                "statistics":  consent.statistics,
+                "marketing":   consent.marketing,
+            ],
+            "timestamp":  consent.timestamp,
+        ]
+        if let v = SeersCMP.appVersion { body["app_version"] = v }
+        if let e = SeersCMP.userEmail  { body["email"]       = e }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request).resume()
     }
 
+    /// Optional: set app version for consent log enrichment.
+    ///   SeersCMP.appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+    public static var appVersion: String?
+
+    /// Optional: set user email for consent log enrichment.
+    ///   SeersCMP.userEmail = "user@example.com"
+    public static var userEmail: String?
+
+    func checkBlockWithConsent(_ identifier: String, consent: SeersConsent) -> Bool {
+        let result = checkShouldBlock(identifier)
+        guard result.blocked, let cat = result.category else { return false }
+        switch cat {
+        case "statistics":  return !consent.statistics
+        case "marketing":   return !consent.marketing
+        case "preferences": return !consent.preferences
+        default:            return false
+        }
+    }
+
     private func shouldShow(dialogue: SeersCMPDialogue?, region: SeersRegion?) -> Bool {
         guard let d = dialogue else { return false }
+        // region_selection=0 → never show banner
+        if d.regionSelection == 0 { return false }
         if d.regionDetection { return region?.eligible == true && region?.regulation != "none" }
         return true
     }
@@ -268,11 +333,27 @@ public final class SeersCMP {
 // MARK: - Banner ViewController (auto-show)
 
 public class SeersBannerViewController: UIViewController {
-    private let payload: SeersBannerPayload
+
+    private let payload:   SeersBannerPayload
     private let onDismiss: () -> Void
 
+    /// Set to true before presenting to skip directly to the preferences panel.
+    var isShowingPreferences: Bool = false
+
+    // ── Preference toggle state (preferences starts ON — matches Flutter) ──
+    private var prefOn = true
+    private var statOn = false
+    private var mktOn  = false
+    private var expandedKeys = Set<String>()
+
+    // ── Keep refs for toggle/arrow updates without full rebuild ──
+    private var toggleSwitches = [String: UISwitch]()
+    private var arrowLabels    = [String: UILabel]()
+    private var descContainers = [String: UIView]()
+    private var catStacks      = [String: UIStackView]()
+
     public init(payload: SeersBannerPayload, onDismiss: @escaping () -> Void) {
-        self.payload = payload
+        self.payload   = payload
         self.onDismiss = onDismiss
         super.init(nibName: nil, bundle: nil)
     }
@@ -281,72 +362,94 @@ public class SeersBannerViewController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        setupBanner()
+        if isShowingPreferences { setupPreferences() } else { setupBanner() }
     }
 
+    // MARK: - Theme helpers (shared by both views)
+
+    private var themeColors: (bg: UIColor, body: UIColor, agree: UIColor, agreeText: UIColor,
+                               decline: UIColor, declineText: UIColor, pref: UIColor) {
+        let b = payload.banner
+        return (
+            bg:          color(b?.bannerBgColor    ?? "#ffffff"),
+            body:        color(b?.bodyTextColor    ?? "#1a1a1a"),
+            agree:       color(b?.agreeBtnColor    ?? "#3b6ef8"),
+            agreeText:   color(b?.agreeTextColor   ?? "#ffffff"),
+            decline:     color(b?.disagreeBtnColor ?? "#1a1a2e"),
+            declineText: color(b?.disagreeTextColor ?? "#ffffff"),
+            // prefFullStyle uses body_text_color — matches Flutter _prefClr => _bodyClr
+            pref:        color(b?.bodyTextColor    ?? "#1a1a1a")
+        )
+    }
+
+    private var fs: CGFloat      { CGFloat(Float(payload.banner?.fontSize ?? "14") ?? 14) }
+    private var titleFs: CGFloat { fs + 2 }
+    private var btnRadius: CGFloat {
+        let t = payload.banner?.buttonType ?? "default"
+        return t.contains("rounded") ? 20 : t.contains("flat") ? 0 : 4
+    }
+    private var isStroke: Bool { (payload.banner?.buttonType ?? "").contains("stroke") }
+
+    // MARK: - Banner panel
+
     private func setupBanner() {
-        let b   = payload.banner
+        let c   = themeColors
         let l   = payload.language
         let d   = payload.dialogue
 
-        let bgColor     = color(b?.bannerBgColor     ?? "#ffffff")
-        let bodyColor   = color(b?.bodyTextColor     ?? "#1a1a1a")
-        let agreeColor  = color(b?.agreeBtnColor     ?? "#3b6ef8")
-        let agreeText   = color(b?.agreeTextColor    ?? "#ffffff")
-        let declineColor= color(b?.disagreeBtnColor  ?? "#1a1a2e")
-        let declineText = color(b?.disagreeTextColor ?? "#ffffff")
-        let fs          = CGFloat(Float(b?.fontSize ?? "14") ?? 14)
-        let btnType     = b?.buttonType ?? "default"
-        let btnRadius   = btnType.contains("rounded") ? CGFloat(20) : btnType.contains("flat") ? CGFloat(0) : CGFloat(4)
         let allowReject = d?.allowReject ?? true
-        let poweredBy   = d?.poweredBy ?? true
+        let poweredBy   = d?.poweredBy   ?? true
+        let bodyText    = l?.body               ?? "We use cookies to personalize content and ads."
+        let btnAgree    = l?.btnAgreeTitle      ?? "Allow All"
+        let btnDecline  = l?.btnDisagreeTitle   ?? "Disable All"
+        let btnPref     = l?.btnPreferenceTitle ?? "Cookie settings"
 
-        let bodyText   = l?.body               ?? "We use cookies to personalize content and ads."
-        let btnAgree   = l?.btnAgreeTitle      ?? "Allow All"
-        let btnDecline = l?.btnDisagreeTitle   ?? "Disable All"
-        let btnPref    = l?.btnPreferenceTitle ?? "Cookie settings"
-
-        // Container
+        // Container — rounded top corners
         let container = UIView()
-        container.backgroundColor = bgColor
+        container.backgroundColor = c.bg
         container.layer.cornerRadius = 12
         container.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         container.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(container)
 
         let stack = UIStackView()
-        stack.axis = .vertical; stack.spacing = 5; stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical; stack.spacing = 5
+        stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
-        // Body label
-        let bodyLabel = UILabel()
-        bodyLabel.text = bodyText; bodyLabel.textColor = bodyColor; bodyLabel.font = .systemFont(ofSize: fs)
-        bodyLabel.numberOfLines = 0; bodyLabel.alpha = 0.9
+        // Body
+        let bodyLabel = makeLabel(bodyText, size: fs, color: c.body, alpha: 0.9, lines: 0)
         stack.addArrangedSubview(bodyLabel)
 
-        // Cookie settings outline
-        stack.addArrangedSubview(makeBtn(btnPref, bg: .clear, fg: bodyColor, fs: fs, radius: btnRadius, outline: true) { [weak self] in
-            self?.dismiss(animated: true)
+        // Cookie settings — opens preferences
+        stack.addArrangedSubview(makeBtn(btnPref, bg: .clear, fg: c.pref, outline: true) { [weak self] in
+            guard let self = self else { return }
+            let prefVC = SeersBannerViewController(payload: self.payload, onDismiss: self.onDismiss)
+            prefVC.isShowingPreferences = true
+            prefVC.modalPresentationStyle = .overFullScreen
+            prefVC.modalTransitionStyle   = .coverVertical
+            self.present(prefVC, animated: true)
         })
 
         // Decline
         if allowReject {
-            stack.addArrangedSubview(makeBtn(btnDecline, bg: declineColor, fg: declineText, fs: fs, radius: btnRadius) { [weak self] in
+            stack.addArrangedSubview(makeBtn(btnDecline, bg: c.decline, fg: c.declineText) { [weak self] in
                 SeersCMP.saveConsent(value: "disagree", preferences: false, statistics: false, marketing: false)
                 self?.dismiss(animated: true) { self?.onDismiss() }
             })
         }
 
         // Allow All
-        stack.addArrangedSubview(makeBtn(btnAgree, bg: agreeColor, fg: agreeText, fs: fs, radius: btnRadius) { [weak self] in
+        let agreeBg = isStroke ? UIColor.clear : c.agree
+        let agreeFg = isStroke ? c.agree       : c.agreeText
+        stack.addArrangedSubview(makeBtn(btnAgree, bg: agreeBg, fg: agreeFg, outline: isStroke) { [weak self] in
             SeersCMP.saveConsent(value: "agree", preferences: true, statistics: true, marketing: true)
             self?.dismiss(animated: true) { self?.onDismiss() }
         })
 
         if poweredBy {
-            let pw = UILabel()
-            pw.text = "Powered by Seers"; pw.textColor = UIColor(white: 0.67, alpha: 1)
-            pw.font = .systemFont(ofSize: fs * 0.7); pw.textAlignment = .center
+            let pw = makeLabel("Powered by Seers", size: fs * 0.7, color: UIColor(white: 0.67, alpha: 1))
+            pw.textAlignment = .center
             stack.addArrangedSubview(pw)
         }
 
@@ -361,20 +464,346 @@ public class SeersBannerViewController: UIViewController {
         ])
     }
 
-    private func makeBtn(_ title: String, bg: UIColor, fg: UIColor, fs: CGFloat, radius: CGFloat, outline: Bool = false, action: @escaping () -> Void) -> UIButton {
+    // MARK: - Preferences panel
+
+    private func setupPreferences() {
+        let c  = themeColors
+        let l  = payload.language
+        let panelHeight = UIScreen.main.bounds.height * 0.88
+
+        let cats: [(key: String, label: String, desc: String)] = [
+            ("necessary",   l?.necessoryTitle  ?? "Necessary",   l?.necessoryBody  ?? "Required for the website to function. Cannot be switched off."),
+            ("preferences", l?.preferenceTitle ?? "Preferences", l?.preferenceBody ?? "Allow the website to remember choices you make."),
+            ("statistics",  l?.statisticsTitle ?? "Statistics",  l?.statisticsBody ?? "Help us understand how visitors interact with the website."),
+            ("marketing",   l?.marketingTitle  ?? "Marketing",   l?.marketingBody  ?? "Used to track visitors and display relevant advertisements."),
+        ]
+
+        // ── Root panel ──
+        let panel = UIView()
+        panel.backgroundColor = c.bg
+        panel.layer.cornerRadius = 16
+        panel.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        panel.clipsToBounds = true
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(panel)
+
+        // ── Scroll area ──
+        let scroll = UIScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(scroll)
+
+        let content = UIStackView()
+        content.axis = .vertical; content.spacing = 4
+        content.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(content)
+
+        // ── Close ✕ ──
+        let closeRow = UIView()
+        let closeBtn = UIButton(type: .system)
+        closeBtn.setTitle("✕", for: .normal)
+        closeBtn.setTitleColor(c.body, for: .normal)
+        closeBtn.titleLabel?.font = .boldSystemFont(ofSize: fs)
+        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        closeRow.addSubview(closeBtn)
+        closeRow.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            closeBtn.trailingAnchor.constraint(equalTo: closeRow.trailingAnchor),
+            closeBtn.topAnchor.constraint(equalTo: closeRow.topAnchor),
+            closeBtn.bottomAnchor.constraint(equalTo: closeRow.bottomAnchor),
+            closeRow.heightAnchor.constraint(equalToConstant: 28),
+        ])
+        closeBtn.addAction(UIAction { [weak self] _ in
+            self?.dismiss(animated: true) { self?.onDismiss() }
+        }, for: .touchUpInside)
+        content.addArrangedSubview(closeRow)
+
+        // ── "About Our Cookies" title ──
+        let titleLbl = makeLabel(l?.aboutCookies ?? "About Our Cookies",
+                                 size: titleFs, color: c.body, bold: true, lines: 0)
+        content.addArrangedSubview(titleLbl)
+        content.setCustomSpacing(4, after: titleLbl)
+
+        // ── Body ──
+        let bodyLbl = makeLabel(l?.body ?? "We use cookies to personalize content and ads.",
+                                size: fs - 1, color: c.body, alpha: 0.85, lines: 0)
+        content.addArrangedSubview(bodyLbl)
+        content.setCustomSpacing(4, after: bodyLbl)
+
+        // ── "Read Cookie Policy ↗" link ──
+        let linkBtn = UIButton(type: .system)
+        linkBtn.setTitle("Read Cookie Policy ↗", for: .normal)
+        linkBtn.setTitleColor(c.agree, for: .normal)
+        linkBtn.titleLabel?.font = .boldSystemFont(ofSize: fs - 2)
+        linkBtn.contentHorizontalAlignment = .left
+        content.addArrangedSubview(linkBtn)
+        content.setCustomSpacing(6, after: linkBtn)
+
+        // ── Allow All ──
+        content.addArrangedSubview(makePrefActionBtn(
+            l?.btnAgreeTitle ?? "Allow All", bg: c.agree, fg: c.agreeText) { [weak self] in
+                SeersCMP.saveConsent(value: "agree", preferences: true, statistics: true, marketing: true)
+                self?.dismiss(animated: true) { self?.onDismiss() }
+        })
+        content.setCustomSpacing(4, after: content.arrangedSubviews.last!)
+
+        // ── Disable All ──
+        content.addArrangedSubview(makePrefActionBtn(
+            l?.btnDisagreeTitle ?? "Disable All",
+            bg: color("#1a1a2e"), fg: .white) { [weak self] in
+                SeersCMP.saveConsent(value: "disagree", preferences: false, statistics: false, marketing: false)
+                self?.dismiss(animated: true) { self?.onDismiss() }
+        })
+        content.setCustomSpacing(8, after: content.arrangedSubviews.last!)
+
+        // ── Separator ──
+        let sep = UIView()
+        sep.backgroundColor = UIColor(white: 0.88, alpha: 1)
+        sep.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        content.addArrangedSubview(sep)
+        content.setCustomSpacing(4, after: sep)
+
+        // ── Category accordion rows ──
+        for cat in cats {
+            content.addArrangedSubview(buildCatRow(cat: cat, colors: c))
+            content.setCustomSpacing(3, after: content.arrangedSubviews.last!)
+        }
+
+        // ── Bottom padding so last row isn't hidden behind sticky footer ──
+        let bottomPad = UIView()
+        bottomPad.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        content.addArrangedSubview(bottomPad)
+
+        // ── Sticky footer ──
+        let footerSep = UIView()
+        footerSep.backgroundColor = UIColor(white: 0.88, alpha: 1)
+        footerSep.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        footerSep.translatesAutoresizingMaskIntoConstraints = false
+
+        let footer = UIView()
+        footer.backgroundColor = c.bg
+        footer.translatesAutoresizingMaskIntoConstraints = false
+
+        // Footer shadow
+        footer.layer.shadowColor  = UIColor.black.cgColor
+        footer.layer.shadowOpacity = 0.08
+        footer.layer.shadowRadius  = 8
+        footer.layer.shadowOffset  = CGSize(width: 0, height: -2)
+
+        let saveBtn = makePrefActionBtn(
+            l?.btnSaveMyChoices ?? "Save my choices", bg: c.agree, fg: c.agreeText) { [weak self] in
+                guard let self = self else { return }
+                SeersCMP.saveConsent(value: "custom",
+                    preferences: self.prefOn, statistics: self.statOn, marketing: self.mktOn)
+                self.dismiss(animated: true) { self.onDismiss() }
+        }
+        saveBtn.translatesAutoresizingMaskIntoConstraints = false
+        footer.addSubview(saveBtn)
+        panel.addSubview(footer)
+
+        NSLayoutConstraint.activate([
+            // Panel
+            panel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            panel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            panel.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            panel.heightAnchor.constraint(equalToConstant: panelHeight),
+            // Scroll fills panel above footer
+            scroll.topAnchor.constraint(equalTo: panel.topAnchor),
+            scroll.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
+            scroll.bottomAnchor.constraint(equalTo: footer.topAnchor),
+            // Content inside scroll
+            content.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 8),
+            content.leadingAnchor.constraint(equalTo: scroll.leadingAnchor, constant: 10),
+            content.trailingAnchor.constraint(equalTo: scroll.trailingAnchor, constant: -10),
+            content.bottomAnchor.constraint(equalTo: scroll.bottomAnchor),
+            content.widthAnchor.constraint(equalTo: scroll.widthAnchor, constant: -20),
+            // Footer
+            footer.leadingAnchor.constraint(equalTo: panel.leadingAnchor),
+            footer.trailingAnchor.constraint(equalTo: panel.trailingAnchor),
+            footer.bottomAnchor.constraint(equalTo: panel.safeAreaLayoutGuide.bottomAnchor),
+            // Save button inside footer
+            saveBtn.topAnchor.constraint(equalTo: footer.topAnchor, constant: 6),
+            saveBtn.leadingAnchor.constraint(equalTo: footer.leadingAnchor, constant: 10),
+            saveBtn.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -10),
+            saveBtn.bottomAnchor.constraint(equalTo: footer.bottomAnchor, constant: -8),
+        ])
+    }
+
+    /// Builds one expandable category row — border, arrow, label, toggle / "Always Active", expandable desc.
+    private func buildCatRow(cat: (key: String, label: String, desc: String),
+                             colors c: (bg: UIColor, body: UIColor, agree: UIColor, agreeText: UIColor,
+                                        decline: UIColor, declineText: UIColor, pref: UIColor)) -> UIView {
+        let isNec = cat.key == "necessary"
+
+        // Wrapper with border
+        let wrap = UIView()
+        wrap.layer.borderColor  = UIColor(white: 0.88, alpha: 1).cgColor
+        wrap.layer.borderWidth  = 1
+        wrap.layer.cornerRadius = 5
+        wrap.clipsToBounds      = true
+        wrap.translatesAutoresizingMaskIntoConstraints = false
+
+        let vStack = UIStackView()
+        vStack.axis = .vertical; vStack.spacing = 0
+        vStack.translatesAutoresizingMaskIntoConstraints = false
+        wrap.addSubview(vStack)
+
+        NSLayoutConstraint.activate([
+            vStack.topAnchor.constraint(equalTo: wrap.topAnchor),
+            vStack.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            vStack.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
+            vStack.bottomAnchor.constraint(equalTo: wrap.bottomAnchor),
+        ])
+
+        // ── Header row ──
+        let header = UIStackView()
+        header.axis = .horizontal; header.spacing = 3; header.alignment = .center
+        header.layoutMargins = UIEdgeInsets(top: 4, left: 5, bottom: 4, right: 5)
+        header.isLayoutMarginsRelativeArrangement = true
+
+        // Arrow label
+        let arrow = makeLabel("▶", size: fs * 0.6, color: c.agree)
+        arrow.textAlignment = .center
+        arrowLabels[cat.key] = arrow
+        header.addArrangedSubview(arrow)
+
+        // Category name
+        let nameLbl = makeLabel(cat.label, size: fs * 0.85, color: c.body, bold: true)
+        header.addArrangedSubview(nameLbl)
+        header.setCustomSpacing(0, after: nameLbl) // spacer fills via flexible name label
+
+        // Spacer
+        let spacer = UIView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        header.addArrangedSubview(spacer)
+
+        // Always Active label OR UISwitch
+        if isNec {
+            let always = makeLabel(payload.language?.alwaysActive ?? "Always Active",
+                                   size: fs * 0.75, color: c.agree, bold: true)
+            header.addArrangedSubview(always)
+        } else {
+            let sw = UISwitch()
+            sw.onTintColor = c.agree
+            sw.transform   = CGAffineTransform(scaleX: 0.75, scaleY: 0.75)
+            switch cat.key {
+            case "preferences": sw.isOn = prefOn
+            case "statistics":  sw.isOn = statOn
+            default:            sw.isOn = mktOn
+            }
+            sw.addAction(UIAction { [weak self] _ in
+                guard let self = self else { return }
+                switch cat.key {
+                case "preferences": self.prefOn = sw.isOn
+                case "statistics":  self.statOn = sw.isOn
+                default:            self.mktOn  = sw.isOn
+                }
+            }, for: .valueChanged)
+            toggleSwitches[cat.key] = sw
+            header.addArrangedSubview(sw)
+        }
+
+        // ── Description (hidden by default) ──
+        let descWrap = UIView()
+        descWrap.backgroundColor = UIColor(white: 0, alpha: 0.02)
+        descWrap.isHidden = true
+
+        let topLine = UIView()
+        topLine.backgroundColor = UIColor(white: 0.94, alpha: 1)
+        topLine.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        topLine.translatesAutoresizingMaskIntoConstraints = false
+
+        let descLbl = makeLabel(cat.desc, size: fs * 0.7, color: c.body, alpha: 0.8, lines: 0)
+        descLbl.translatesAutoresizingMaskIntoConstraints = false
+
+        descWrap.addSubview(topLine)
+        descWrap.addSubview(descLbl)
+        descWrap.translatesAutoresizingMaskIntoConstraints = false
+
+        NSLayoutConstraint.activate([
+            topLine.topAnchor.constraint(equalTo: descWrap.topAnchor),
+            topLine.leadingAnchor.constraint(equalTo: descWrap.leadingAnchor),
+            topLine.trailingAnchor.constraint(equalTo: descWrap.trailingAnchor),
+            descLbl.topAnchor.constraint(equalTo: topLine.bottomAnchor, constant: 3),
+            descLbl.leadingAnchor.constraint(equalTo: descWrap.leadingAnchor, constant: 7),
+            descLbl.trailingAnchor.constraint(equalTo: descWrap.trailingAnchor, constant: -7),
+            descLbl.bottomAnchor.constraint(equalTo: descWrap.bottomAnchor, constant: -4),
+        ])
+
+        descContainers[cat.key] = descWrap
+
+        vStack.addArrangedSubview(header)
+        vStack.addArrangedSubview(descWrap)
+
+        // Tap header to expand/collapse
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleCatTap(_:)))
+        header.addGestureRecognizer(tap)
+        header.tag = ["necessary": 0, "preferences": 1, "statistics": 2, "marketing": 3][cat.key] ?? 0
+        header.isUserInteractionEnabled = true
+        catStacks[cat.key] = header
+
+        return wrap
+    }
+
+    @objc private func handleCatTap(_ gesture: UITapGestureRecognizer) {
+        let keys = ["necessary", "preferences", "statistics", "marketing"]
+        guard let tag = gesture.view?.tag, tag < keys.count else { return }
+        let key = keys[tag]
+        let isOpen = expandedKeys.contains(key)
+        if isOpen { expandedKeys.remove(key) } else { expandedKeys.insert(key) }
+        UIView.animate(withDuration: 0.2) {
+            self.descContainers[key]?.isHidden  = isOpen
+            self.arrowLabels[key]?.transform     = isOpen ? .identity : CGAffineTransform(rotationAngle: .pi / 2)
+        }
+    }
+
+    // MARK: - Shared button/label factories
+
+    private func makeBtn(_ title: String, bg: UIColor, fg: UIColor,
+                         outline: Bool = false, action: @escaping () -> Void) -> UIButton {
         let btn = UIButton(type: .system)
-        btn.setTitle(title, for: .normal); btn.setTitleColor(fg, for: .normal)
-        btn.titleLabel?.font = .boldSystemFont(ofSize: fs)
-        btn.backgroundColor = bg; btn.layer.cornerRadius = radius
+        btn.setTitle(title, for: .normal)
+        btn.setTitleColor(fg, for: .normal)
+        btn.titleLabel?.font   = .boldSystemFont(ofSize: fs)
+        btn.backgroundColor    = bg
+        btn.layer.cornerRadius = btnRadius
         if outline { btn.layer.borderWidth = 1.5; btn.layer.borderColor = fg.cgColor }
-        btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        btn.contentEdgeInsets = UIEdgeInsets(top: 5, left: 8, bottom: 5, right: 8)
         btn.addAction(UIAction { _ in action() }, for: .touchUpInside)
         return btn
     }
 
+    /// Full-width action button used inside the preferences panel (Allow / Disable / Save).
+    private func makePrefActionBtn(_ title: String, bg: UIColor, fg: UIColor,
+                                   action: @escaping () -> Void) -> UIButton {
+        let btn = UIButton(type: .system)
+        btn.setTitle(title, for: .normal)
+        btn.setTitleColor(fg, for: .normal)
+        btn.titleLabel?.font   = .boldSystemFont(ofSize: fs)
+        btn.backgroundColor    = bg
+        btn.layer.cornerRadius = 4
+        btn.contentEdgeInsets  = UIEdgeInsets(top: 5, left: 6, bottom: 5, right: 6)
+        btn.addAction(UIAction { _ in action() }, for: .touchUpInside)
+        // Stretch full width
+        btn.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return btn
+    }
+
+    private func makeLabel(_ text: String, size: CGFloat, color: UIColor,
+                           alpha: CGFloat = 1, bold: Bool = false, lines: Int = 1) -> UILabel {
+        let lbl = UILabel()
+        lbl.text          = text
+        lbl.textColor     = color
+        lbl.alpha         = alpha
+        lbl.numberOfLines = lines
+        lbl.font          = bold ? .boldSystemFont(ofSize: size) : .systemFont(ofSize: size)
+        return lbl
+    }
+
     private func color(_ hex: String) -> UIColor {
-        var h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0; Scanner(string: h).scanHexInt64(&int)
+        let h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: h).scanHexInt64(&int)
         let r = CGFloat((int >> 16) & 0xFF) / 255
         let g = CGFloat((int >> 8)  & 0xFF) / 255
         let b = CGFloat(int         & 0xFF) / 255
@@ -433,20 +862,29 @@ public struct SeersCMPConfig: Codable {
 public struct SeersCMPDialogue: Codable {
     public let regionDetection: Bool; public let agreementExpire: Int
     public let defaultLanguage: String?; public let allowReject: Bool; public let poweredBy: Bool
-    public let mobileTemplate: String?
+    public let mobileTemplate: String?; public let regionSelection: Int
     enum CodingKeys: String, CodingKey {
         case regionDetection = "region_detection"; case agreementExpire = "agreement_expire"
         case defaultLanguage = "default_language"; case allowReject = "allow_reject"
         case poweredBy = "powered_by"; case mobileTemplate = "mobile_template"
+        case regionSelection = "region_selection"
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        regionDetection = (try? c.decode(Bool.self, forKey: .regionDetection)) ?? false
-        agreementExpire = (try? c.decode(Int.self,  forKey: .agreementExpire)) ?? 365
-        defaultLanguage = try? c.decode(String.self, forKey: .defaultLanguage)
-        allowReject     = (try? c.decode(Bool.self, forKey: .allowReject)) ?? true
-        poweredBy       = (try? c.decode(Bool.self, forKey: .poweredBy))   ?? true
-        mobileTemplate  = try? c.decode(String.self, forKey: .mobileTemplate)
+        regionDetection  = (try? c.decode(Bool.self, forKey: .regionDetection)) ?? false
+        agreementExpire  = (try? c.decode(Int.self,  forKey: .agreementExpire)) ?? 365
+        defaultLanguage  = try? c.decode(String.self, forKey: .defaultLanguage)
+        allowReject      = (try? c.decode(Bool.self, forKey: .allowReject)) ?? true
+        poweredBy        = (try? c.decode(Bool.self, forKey: .poweredBy))   ?? true
+        mobileTemplate   = try? c.decode(String.self, forKey: .mobileTemplate)
+        // region_selection can be Int or String
+        if let i = try? c.decode(Int.self, forKey: .regionSelection) {
+            regionSelection = i
+        } else if let s = try? c.decode(String.self, forKey: .regionSelection), let i = Int(s) {
+            regionSelection = i
+        } else {
+            regionSelection = 1 // default GDPR
+        }
     }
 }
 
