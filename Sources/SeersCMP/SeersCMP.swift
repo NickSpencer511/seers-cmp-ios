@@ -421,14 +421,12 @@ public class SeersBannerViewController: UIViewController {
         let bodyLabel = makeLabel(bodyText, size: fs, color: c.body, alpha: 0.9, lines: 0)
         stack.addArrangedSubview(bodyLabel)
 
-        // Cookie settings — opens preferences
-        stack.addArrangedSubview(makeBtn(btnPref, bg: .clear, fg: c.pref, outline: true) { [weak self] in
-            guard let self = self else { return }
-            let prefVC = SeersBannerViewController(payload: self.payload, onDismiss: self.onDismiss)
-            prefVC.isShowingPreferences = true
-            prefVC.modalPresentationStyle = .overFullScreen
-            prefVC.modalTransitionStyle   = .coverVertical
-            self.present(prefVC, animated: true)
+        // Allow All
+        let agreeBg = isStroke ? UIColor.clear : c.agree
+        let agreeFg = isStroke ? c.agree       : c.agreeText
+        stack.addArrangedSubview(makeBtn(btnAgree, bg: agreeBg, fg: agreeFg, outline: isStroke) { [weak self] in
+            SeersCMP.saveConsent(value: "agree", preferences: true, statistics: true, marketing: true)
+            self?.dismiss(animated: true) { self?.onDismiss() }
         })
 
         // Decline
@@ -439,12 +437,14 @@ public class SeersBannerViewController: UIViewController {
             })
         }
 
-        // Allow All
-        let agreeBg = isStroke ? UIColor.clear : c.agree
-        let agreeFg = isStroke ? c.agree       : c.agreeText
-        stack.addArrangedSubview(makeBtn(btnAgree, bg: agreeBg, fg: agreeFg, outline: isStroke) { [weak self] in
-            SeersCMP.saveConsent(value: "agree", preferences: true, statistics: true, marketing: true)
-            self?.dismiss(animated: true) { self?.onDismiss() }
+        // Cookie settings — opens preferences
+        stack.addArrangedSubview(makeBtn(btnPref, bg: .clear, fg: c.pref, outline: true) { [weak self] in
+            guard let self = self else { return }
+            let prefVC = SeersBannerViewController(payload: self.payload, onDismiss: self.onDismiss)
+            prefVC.isShowingPreferences = true
+            prefVC.modalPresentationStyle = .overFullScreen
+            prefVC.modalTransitionStyle   = .coverVertical
+            self.present(prefVC, animated: true)
         })
 
         if poweredBy {

@@ -77,11 +77,11 @@ public struct SeersBannerView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 2)
 
-                outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
+                primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
                 if dialogue?.allowReject ?? true {
                     darkBtn(lang?.btnDisagreeTitle ?? "Disable All") { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }
                 }
-                primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
+                outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
 
                 if dialogue?.poweredBy ?? true {
                     Text("Powered by Seers")
@@ -162,11 +162,11 @@ public struct SeersBannerView: View {
             Text(lang?.body ?? "We use cookies to improve your experience.")
                 .font(.system(size: fs)).foregroundColor(bodyColor)
                 .fixedSize(horizontal: false, vertical: true)
-            outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
+            primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
             if dialogue?.allowReject ?? true {
                 darkBtn(lang?.btnDisagreeTitle ?? "Disable All") { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }
             }
-            primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
+            outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
         }
         .padding(12)
         .background(bgColor)
