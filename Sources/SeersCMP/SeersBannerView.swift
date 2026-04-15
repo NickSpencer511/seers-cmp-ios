@@ -26,8 +26,10 @@ public struct SeersBannerView: View {
     private var prefText:     Color { bodyColor }
 
     // Font size — read from dashboard exactly like Flutter
-    private var fs: CGFloat       { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
-    private var titleFs: CGFloat  { fs + 2 }
+    private var fs: CGFloat        { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
+    private var titleFs: CGFloat   { fs + 2 }   // headings = fs + 2
+    private var catNameFs: CGFloat { fs + 1 }   // category names = fs + 1
+    private var catBodyFs: CGFloat { fs - 1 }   // category desc = fs - 1
 
     // Button radius — matches Flutter _btnR
     private var btnRadius: CGFloat {
@@ -118,14 +120,14 @@ public struct SeersBannerView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 7)
 
-                // btn-row-primary
+                // btn-row-primary: btn-item padding:4px, font-weight:600
                 HStack(spacing: 4) {
                     if dialogue?.allowReject ?? true {
                         Button(action: { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }) {
                             Text(lang?.btnDisagreeTitle ?? "Decline")
                                 .font(.system(size: fs, weight: .semibold))
                                 .foregroundColor(declineText)
-                                .frame(maxWidth: .infinity).padding(.vertical, 4)
+                                .frame(maxWidth: .infinity).padding(4)
                                 .background(declineColor).cornerRadius(btnRadius)
                         }
                     }
@@ -133,13 +135,14 @@ public struct SeersBannerView: View {
                         Text(lang?.btnAgreeTitle ?? "Accept All")
                             .font(.system(size: fs, weight: .semibold))
                             .foregroundColor(agreeText)
-                            .frame(maxWidth: .infinity).padding(.vertical, 4)
+                            .frame(maxWidth: .infinity).padding(4)
                             .background(agreeColor).cornerRadius(btnRadius)
                     }
                 }
                 .padding(.bottom, 4)
 
-                outlineBtn(lang?.btnPreferenceTitle ?? "Manage Preferences") { withAnimation { showPreferences = true } }
+                // btn-pref-full: padding:4px 6px, margin-bottom:3px, border:1px, font-weight:600
+                prefFullBtn(lang?.btnPreferenceTitle ?? "Manage Preferences") { withAnimation { showPreferences = true } }
 
                 if dialogue?.poweredBy ?? true {
                     Text("Powered by Seers")
@@ -147,7 +150,7 @@ public struct SeersBannerView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 10)
+            .padding(12)
             .background(bgColor)
             .cornerRadius(14, corners: position == "top" ? [.bottomLeft, .bottomRight] : [.topLeft, .topRight])
         }
@@ -176,30 +179,45 @@ public struct SeersBannerView: View {
     }
 
     // ── Shared button builders ──
-    private func outlineBtn(_ label: String, action: @escaping () -> Void) -> some View {
+    // btn-pref-full: padding:4px 6px, margin-bottom:3px, border:1px, font-weight:600
+    private func prefFullBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label).font(.system(size: fs, weight: .semibold)).foregroundColor(prefText)
-                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .frame(maxWidth: .infinity).padding(.vertical, 4).padding(.horizontal, 6)
+                .overlay(RoundedRectangle(cornerRadius: btnRadius).stroke(prefText, lineWidth: 1))
+        }
+        .padding(.bottom, 3)
+    }
+
+    // stk-outline: padding:5px 8px, no margin-bottom (always last), border:1.5px, font-weight:700
+    private func outlineBtn(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).font(.system(size: fs, weight: .bold)).foregroundColor(prefText)
+                .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 8)
                 .overlay(RoundedRectangle(cornerRadius: btnRadius).stroke(prefText, lineWidth: 1.5))
         }
     }
 
+    // stk-dark: padding:5px 8px, margin-bottom:5px, font-weight:700
     private func darkBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label).font(.system(size: fs, weight: .semibold)).foregroundColor(declineText)
-                .frame(maxWidth: .infinity).padding(.vertical, 5)
+            Text(label).font(.system(size: fs, weight: .bold)).foregroundColor(declineText)
+                .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 8)
                 .background(declineColor).cornerRadius(btnRadius)
         }
+        .padding(.bottom, 5)
     }
 
+    // stk-primary: padding:5px 8px, margin-bottom:5px, font-weight:700
     private func primaryBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label).font(.system(size: fs, weight: .semibold))
+            Text(label).font(.system(size: fs, weight: .bold))
                 .foregroundColor(isStroke ? agreeColor : agreeText)
-                .frame(maxWidth: .infinity).padding(.vertical, 5)
+                .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 8)
                 .background(isStroke ? Color.clear : agreeColor).cornerRadius(btnRadius)
                 .overlay(isStroke ? RoundedRectangle(cornerRadius: btnRadius).stroke(agreeColor, lineWidth: 1) : nil)
         }
+        .padding(.bottom, 5)
     }
 
     // ── Helpers ──
@@ -233,84 +251,103 @@ struct SeersPreferencesView: View {
 
     private var lang:   SeersCMPLanguage? { payload.language }
     private var banner: SeersCMPBanner?   { payload.banner }
-    private var accentColor: Color { Color(hex: banner?.agreeBtnColor ?? "#3b6ef8") }
-    private var bgColor:     Color { Color(hex: banner?.bannerBgColor ?? "#ffffff") }
-    private var textColor:   Color { Color(hex: banner?.bodyTextColor ?? "#1a1a1a") }
+    private var accentColor: Color { Color(hex: banner?.agreeBtnColor  ?? "#3b6ef8") }
+    private var agreeTextClr: Color { Color(hex: banner?.agreeTextColor ?? "#ffffff") }
+    private var bgColor:     Color { Color(hex: banner?.bannerBgColor  ?? "#ffffff") }
+    private var textColor:   Color { Color(hex: banner?.bodyTextColor  ?? "#1a1a1a") }
+    private var titleColor:  Color { Color(hex: banner?.titleTextColor ?? "#1a1a1a") }
+
+    // Font sizes — same derivation as SeersBannerView
+    private var fs:        CGFloat { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
+    private var titleFs:   CGFloat { fs + 2 }
+    private var catNameFs: CGFloat { fs + 1 }
+    private var catBodyFs: CGFloat { fs - 1 }
+    private var arrowFs:   CGFloat { (fs * 0.75).rounded() }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text(lang?.aboutCookies ?? "About Our Cookies")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(textColor)
-                Spacer()
-                Button(action: { withAnimation { isPresented = false } }) {
-                    Image(systemName: "xmark")
-                        .foregroundColor(textColor)
-                        .font(.system(size: 14, weight: .semibold))
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 8)
-
+            // pref-scroll content
             ScrollView {
-                VStack(spacing: 0) {
-                    // Body
-                    Text(lang?.body ?? "We use cookies to personalize content and ads.")
-                        .font(.system(size: 12))
-                        .foregroundColor(textColor)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                VStack(alignment: .leading, spacing: 0) {
+                    // pref-close: align right
+                    Button(action: { withAnimation { isPresented = false } }) {
+                        Text("✕").font(.system(size: fs, weight: .bold)).foregroundColor(titleColor)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.bottom, 2)
 
-                    // Allow All
+                    // pref-title: font-weight:700, fs+2
+                    Text(lang?.aboutCookies ?? "About Our Cookies")
+                        .font(.system(size: titleFs, weight: .bold))
+                        .foregroundColor(titleColor)
+                        .padding(.bottom, 4)
+
+                    // pref-body: fs-1 (catBodyFs), opacity:0.85, line-height:1.4
+                    Text(lang?.body ?? "We use cookies to personalize content and ads.")
+                        .font(.system(size: fs))
+                        .foregroundColor(textColor.opacity(0.85))
+                        .lineSpacing(fs * 0.4)
+                        .padding(.bottom, 4)
+
+                    // pref-policy-link: fs, font-weight:600, underline, agree_btn_color
+                    Text("Read Cookie Policy ↗")
+                        .font(.system(size: fs, weight: .semibold))
+                        .foregroundColor(accentColor)
+                        .underline()
+                        .padding(.bottom, 6)
+
+                    // pref-allow-btn: padding:4px 6px, font-weight:700, border-radius:4px
                     Button(action: { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }) {
                         Text(lang?.btnAgreeTitle ?? "Allow All")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(hex: banner?.agreeTextColor ?? "#ffffff"))
-                            .frame(maxWidth: .infinity).padding(.vertical, 11)
-                            .background(accentColor).cornerRadius(6)
+                            .font(.system(size: fs, weight: .bold))
+                            .foregroundColor(agreeTextClr)
+                            .frame(maxWidth: .infinity).padding(.vertical, 4).padding(.horizontal, 6)
+                            .background(accentColor).cornerRadius(4)
                     }
-                    .padding(.horizontal, 16).padding(.bottom, 6)
+                    .padding(.bottom, 4)
 
-                    // Disable All
+                    // pref-disable-btn: padding:4px 6px, font-weight:700, border-radius:4px
                     Button(action: { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }) {
                         Text(lang?.btnDisagreeTitle ?? "Disable All")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: fs, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity).padding(.vertical, 11)
-                            .background(Color(hex: "#1a1a2e")).cornerRadius(6)
+                            .frame(maxWidth: .infinity).padding(.vertical, 4).padding(.horizontal, 6)
+                            .background(Color(hex: "#1a1a2e")).cornerRadius(4)
                     }
-                    .padding(.horizontal, 16).padding(.bottom, 12)
+                    .padding(.bottom, 8)
 
-                    Divider().padding(.horizontal, 16)
-
-                    // Category rows
-                    categoryRow(key: "necessary",   label: lang?.necessoryTitle  ?? "Necessary",   isAlwaysActive: true,  isOn: .constant(true))
-                    categoryRow(key: "preferences", label: lang?.preferenceTitle ?? "Preferences", isAlwaysActive: false, isOn: $prefOn)
-                    categoryRow(key: "statistics",  label: lang?.statisticsTitle ?? "Statistics",  isAlwaysActive: false, isOn: $statOn)
-                    categoryRow(key: "marketing",   label: lang?.marketingTitle  ?? "Marketing",   isAlwaysActive: false, isOn: $mktOn)
+                    // pref-categories: border-top:1px #e0e0e0, padding-top:4px, gap:3px
+                    VStack(spacing: 3) {
+                        categoryRow(key: "necessary",   label: lang?.necessoryTitle  ?? "Necessary",   isAlwaysActive: true,  isOn: .constant(true))
+                        categoryRow(key: "preferences", label: lang?.preferenceTitle ?? "Preferences", isAlwaysActive: false, isOn: $prefOn)
+                        categoryRow(key: "statistics",  label: lang?.statisticsTitle ?? "Statistics",  isAlwaysActive: false, isOn: $statOn)
+                        categoryRow(key: "marketing",   label: lang?.marketingTitle  ?? "Marketing",   isAlwaysActive: false, isOn: $mktOn)
+                    }
+                    .padding(.top, 4)
+                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#e0e0e0")), alignment: .top)
                 }
+                .padding(12)
                 .padding(.bottom, 80) // space for sticky footer
             }
         }
         .background(bgColor)
         .overlay(
-            // Sticky Save my choices footer
+            // pref-footer: padding:12px, border-top:1px #e0e0e0, box-shadow
             VStack {
                 Spacer()
                 VStack(spacing: 0) {
-                    Divider()
+                    // pref-save-btn: padding:5px 6px, font-weight:700, border-radius:4px
                     Button(action: { saveConsent(value: "custom", pref: prefOn, stat: statOn, mkt: mktOn) }) {
                         Text(lang?.btnSaveMyChoices ?? "Save my choices")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(hex: banner?.agreeTextColor ?? "#ffffff"))
-                            .frame(maxWidth: .infinity).padding(.vertical, 13)
-                            .background(accentColor).cornerRadius(6)
+                            .font(.system(size: fs, weight: .bold))
+                            .foregroundColor(agreeTextClr)
+                            .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 6)
+                            .background(accentColor).cornerRadius(4)
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    .padding(12)
                     .background(bgColor)
+                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#e0e0e0")), alignment: .top)
+                    .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: -2)
                 }
             }
         )
@@ -320,35 +357,54 @@ struct SeersPreferencesView: View {
 
     @ViewBuilder
     private func categoryRow(key: String, label: String, isAlwaysActive: Bool, isOn: Binding<Bool>) -> some View {
+        // pref-cat-wrap: border:1px #e0e0e0, border-radius:5px
         VStack(spacing: 0) {
-            HStack {
-                Button(action: { withAnimation { if expanded.contains(key) { expanded.remove(key) } else { expanded.insert(key) } } }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: expanded.contains(key) ? "chevron.down.circle.fill" : "chevron.right.circle.fill")
-                            .foregroundColor(accentColor).font(.system(size: 16))
-                        Text(label).font(.system(size: 13, weight: .semibold)).foregroundColor(textColor)
-                    }
-                }
-                Spacer()
+            // pref-cat-row: padding:4px 5px
+            HStack(spacing: 3) {
+                // pref-cat-arrow: arrowFs, rotates 90deg when open
+                Text("▶")
+                    .font(.system(size: arrowFs))
+                    .foregroundColor(accentColor)
+                    .rotationEffect(.degrees(expanded.contains(key) ? 90 : 0))
+                    .animation(.easeInOut(duration: 0.2), value: expanded.contains(key))
+                // pref-cat-name: catNameFs (fs+1), font-weight:600
+                Text(label)
+                    .font(.system(size: catNameFs, weight: .semibold))
+                    .foregroundColor(textColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if isAlwaysActive {
-                    Text("Always Active").font(.system(size: 11, weight: .semibold)).foregroundColor(accentColor)
+                    // pref-always-active: fs, font-weight:600
+                    Text(lang?.alwaysActive ?? "Always Active")
+                        .font(.system(size: fs, weight: .semibold))
+                        .foregroundColor(accentColor)
                 } else {
                     Toggle("", isOn: isOn).labelsHidden().tint(accentColor)
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .background(Color.white)
-            .cornerRadius(8)
-            .padding(.horizontal, 12).padding(.vertical, 3)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2), lineWidth: 1).padding(.horizontal, 12).padding(.vertical, 3))
+            .padding(.horizontal, 5).padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    if expanded.contains(key) { expanded.remove(key) } else { expanded.insert(key) }
+                }
+            }
 
+            // pref-cat-body: padding:3px 7px 4px, catBodyFs (fs-1), opacity:0.8, border-top:1px #f0f0f0
             if expanded.contains(key) {
                 Text(descriptionFor(key: key))
-                    .font(.system(size: 11)).foregroundColor(textColor.opacity(0.7))
-                    .padding(.horizontal, 28).padding(.bottom, 6)
+                    .font(.system(size: catBodyFs))
+                    .foregroundColor(textColor.opacity(0.8))
+                    .lineSpacing(catBodyFs * 0.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 7).padding(.top, 3).padding(.bottom, 4)
+                    .background(Color.black.opacity(0.02))
+                    .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#f0f0f0")), alignment: .top)
             }
         }
+        .background(bgColor)
+        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(hex: "#e0e0e0"), lineWidth: 1))
+        .cornerRadius(5)
+        .clipped()
     }
 
     private func descriptionFor(key: String) -> String {
