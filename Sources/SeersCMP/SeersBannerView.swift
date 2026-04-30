@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// Drop-in SwiftUI consent banner.
@@ -11,6 +12,9 @@ public struct SeersBannerView: View {
     let payload: SeersBannerPayload
     @Binding var isPresented: Bool
     @State private var showPreferences = false
+    @State private var showBanner = true
+    @State private var showBadge = false
+    @State private var badgeWorkItem: DispatchWorkItem?
 
     private var dialogue:  SeersCMPDialogue?  { payload.dialogue }
     private var banner:    SeersCMPBanner?    { payload.banner }
@@ -39,34 +43,43 @@ public struct SeersBannerView: View {
         return 6
     }
     private var isStroke: Bool { (banner?.buttonType ?? "").contains("stroke") }
+    private var hasBadge: Bool { dialogue?.hasBadge ?? false }
+    private var bannerTimeout: Int { dialogue?.bannerTimeout ?? 0 }
+    private var showLogo: Bool { (dialogue?.logoStatus ?? "default") != "none" }
+    private var logoURL: String { dialogue?.logoLink ?? seersDefaultLogoURL }
+    private var customBadgeURL: String? {
+        guard dialogue?.badgeStatus == "custom" else { return nil }
+        return dialogue?.badgeLink
+    }
 
     public var body: some View {
         ZStack(alignment: position == "top" ? .top : .bottom) {
-            // Dimmed overlay
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
+            if showPreferences || showBanner {
+                if showPreferences {
+                    SeersPreferencesView(
+                        payload: payload,
+                        showPreferences: $showPreferences,
+                        onSave: saveConsent
+                    )
+                    .transition(.move(edge: .bottom))
+                } else if mobileTemplate == "dialog" {
+                    dialogBanner
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                } else if mobileTemplate == "bottom_sheet" {
+                    bottomSheetBanner
+                        .transition(.move(edge: position == "top" ? .top : .bottom))
+                } else {
+                    popupBanner
+                        .transition(.move(edge: position == "top" ? .top : .bottom))
+                }
+            }
 
-            if showPreferences {
-                SeersPreferencesView(
-                    payload: payload,
-                    isPresented: $isPresented
-                )
-                .transition(.move(edge: .bottom))
-            } else if mobileTemplate == "dialog" {
-                // ── DIALOG — centered modal ──
-                dialogBanner
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-            } else if mobileTemplate == "bottom_sheet" {
-                // ── BOTTOM SHEET ──
-                bottomSheetBanner
-                    .transition(.move(edge: position == "top" ? .top : .bottom))
-            } else {
-                // ── POPUP (default) ──
-                popupBanner
-                    .transition(.move(edge: position == "top" ? .top : .bottom))
+            if showBadge && hasBadge {
+                badgeOverlay
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showPreferences)
+        .onDisappear { badgeWorkItem?.cancel() }
     }
 
     // ── Popup — 3 stacked buttons, no title ──
@@ -83,7 +96,10 @@ public struct SeersBannerView: View {
                 if dialogue?.allowReject ?? true {
                     darkBtn(lang?.btnDisagreeTitle ?? "Disable All") { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }
                 }
-                outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
+                outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") {
+                    badgeWorkItem?.cancel()
+                    withAnimation { showPreferences = true }
+                }
 
                 if dialogue?.poweredBy ?? true {
                     Text("Powered by Seers")
@@ -142,7 +158,10 @@ public struct SeersBannerView: View {
                 .padding(.bottom, 4)
 
                 // btn-pref-full: padding:4px 6px, margin-bottom:3px, border:1px, font-weight:600
-                prefFullBtn(lang?.btnPreferenceTitle ?? "Manage Preferences") { withAnimation { showPreferences = true } }
+                prefFullBtn(lang?.btnPreferenceTitle ?? "Manage Preferences") {
+                    badgeWorkItem?.cancel()
+                    withAnimation { showPreferences = true }
+                }
 
                 if dialogue?.poweredBy ?? true {
                     Text("Powered by Seers")
@@ -169,13 +188,56 @@ public struct SeersBannerView: View {
             if dialogue?.allowReject ?? true {
                 darkBtn(lang?.btnDisagreeTitle ?? "Disable All") { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }
             }
-            outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") { withAnimation { showPreferences = true } }
+            outlineBtn(lang?.btnPreferenceTitle ?? "Cookie settings") {
+                badgeWorkItem?.cancel()
+                withAnimation { showPreferences = true }
+            }
         }
         .padding(12)
         .background(bgColor)
         .cornerRadius(dialogRadius)
         .shadow(color: .black.opacity(0.22), radius: 24)
         .frame(width: UIScreen.main.bounds.width * 0.88)
+    }
+
+    private var logoBlock: some View {
+        SeersRemoteImageView(url: logoURL)
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+            .padding(.bottom, 6)
+    }
+
+    private var badgeOverlay: some View {
+        ZStack {
+            Color.clear
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+
+            VStack {
+                Spacer()
+                HStack {
+                    Button(action: reopenFromBadge) {
+                        badgeArtwork
+                    }
+                    Spacer()
+                }
+            }
+            .padding(.leading, 12)
+            .padding(.bottom, 12)
+        }
+    }
+
+    @ViewBuilder
+    private var badgeArtwork: some View {
+        if let customBadgeURL {
+            SeersRemoteImageView(url: customBadgeURL, fallback: seersDefaultBadgeImage())
+                .frame(width: 34, height: 34)
+        } else if let uiImage = seersDefaultBadgeImage() {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 34, height: 34)
+        }
     }
 
     // ── Shared button builders ──
@@ -232,22 +294,95 @@ public struct SeersBannerView: View {
     }
 
     private func saveConsent(value: String, pref: Bool, stat: Bool, mkt: Bool) {
+        badgeWorkItem?.cancel()
         SeersCMP.saveConsent(value: value, preferences: pref, statistics: stat, marketing: mkt)
-        withAnimation { isPresented = false }
+        if hasBadge {
+            withAnimation {
+                showPreferences = false
+                showBanner = false
+                showBadge = true
+            }
+        } else {
+            withAnimation { isPresented = false }
+        }
+    }
+
+    private func reopenFromBadge() {
+        badgeWorkItem?.cancel()
+        withAnimation {
+            showBadge = false
+            showBanner = true
+        }
+
+        guard hasBadge, bannerTimeout > 0 else { return }
+        let workItem = DispatchWorkItem {
+            withAnimation {
+                showPreferences = false
+                showBanner = false
+                showBadge = true
+            }
+        }
+        badgeWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(bannerTimeout), execute: workItem)
     }
 }
 
 // MARK: - Preferences View
 
+final class SeersRemoteImageLoader: ObservableObject {
+    @Published var image: UIImage?
+
+    init(url: String?, fallback: UIImage? = nil) {
+        image = fallback
+        seersLoadRemoteImage(url) { [weak self] remoteImage in
+            if let remoteImage {
+                self?.image = remoteImage
+            }
+        }
+    }
+}
+
+struct SeersRemoteImageView: View {
+    @ObservedObject private var loader: SeersRemoteImageLoader
+
+    init(url: String?, fallback: UIImage? = nil) {
+        loader = SeersRemoteImageLoader(url: url, fallback: fallback)
+    }
+
+    var body: some View {
+        Group {
+            if let image = loader.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Color.clear
+            }
+        }
+    }
+}
+
 struct SeersPreferencesView: View {
 
     let payload: SeersBannerPayload
-    @Binding var isPresented: Bool
+    @Binding var showPreferences: Bool
+    let onSave: (String, Bool, Bool, Bool) -> Void
 
-    @State private var prefOn  = true
+    @State private var prefOn  = false
     @State private var statOn  = false
     @State private var mktOn   = false
     @State private var expanded: Set<String> = []
+
+    init(payload: SeersBannerPayload,
+         showPreferences: Binding<Bool>,
+         onSave: @escaping (String, Bool, Bool, Bool) -> Void) {
+        self.payload = payload
+        self._showPreferences = showPreferences
+        self.onSave = onSave
+        self._prefOn = State(initialValue: payload.dialogue?.preferencesChecked ?? false)
+        self._statOn = State(initialValue: payload.dialogue?.statisticsChecked ?? false)
+        self._mktOn = State(initialValue: payload.dialogue?.targetingChecked ?? false)
+    }
 
     private var lang:   SeersCMPLanguage? { payload.language }
     private var banner: SeersCMPBanner?   { payload.banner }
@@ -256,6 +391,8 @@ struct SeersPreferencesView: View {
     private var bgColor:     Color { Color(hex: banner?.bannerBgColor  ?? "#ffffff") }
     private var textColor:   Color { Color(hex: banner?.bodyTextColor  ?? "#1a1a1a") }
     private var titleColor:  Color { Color(hex: banner?.titleTextColor ?? "#1a1a1a") }
+    private var showLogo: Bool { (payload.dialogue?.logoStatus ?? "default") != "none" }
+    private var logoURL: String { payload.dialogue?.logoLink ?? seersDefaultLogoURL }
 
     // Font sizes — same derivation as SeersBannerView
     private var fs:        CGFloat { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
@@ -269,11 +406,18 @@ struct SeersPreferencesView: View {
             // pref-scroll content
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    // pref-close: align right
-                    Button(action: { withAnimation { isPresented = false } }) {
-                        Text("✕").font(.system(size: fs, weight: .bold)).foregroundColor(titleColor)
+                    HStack(alignment: .center, spacing: 8) {
+                        if showLogo {
+                            SeersRemoteImageView(url: logoURL)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .frame(height: 28)
+                        } else {
+                            Spacer()
+                        }
+                        Button(action: { withAnimation { showPreferences = false } }) {
+                            Text("✕").font(.system(size: fs, weight: .bold)).foregroundColor(titleColor)
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(.bottom, 2)
 
                     // pref-title: font-weight:700, fs+2
@@ -418,8 +562,9 @@ struct SeersPreferencesView: View {
     }
 
     private func saveConsent(value: String, pref: Bool, stat: Bool, mkt: Bool) {
-        SeersCMP.saveConsent(value: value, preferences: pref, statistics: stat, marketing: mkt)
-        withAnimation { isPresented = false }
+        withAnimation {
+            onSave(value, pref, stat, mkt)
+        }
     }
 }
 

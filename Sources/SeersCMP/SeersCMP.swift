@@ -1,6 +1,225 @@
 import Foundation
 import UIKit
 
+let seersDefaultBadgeBase64 =
+    "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"
+let seersDefaultLogoURL =
+    "https://seers-application-assets.s3.amazonaws.com/images/logo/seersco-logo.png"
+
+// Seers CMP registered ID (IAB TCF)
+private let seersCmpId      = 158
+private let seersCmpVersion = 1
+// Google Consent Mode v2 developer ID
+private let seersGoogleDevId = "dNmU0M2"
+// Allowlist of trusted Seers hosts — prevents SSRF (CWE-918)
+private let seersAllowedHosts = ["consents.dev", "seers.ai", "seersco.com", "cdn.consents.dev"]
+
+private func seersIsAllowedHost(_ urlString: String) -> Bool {
+    guard let host = URL(string: urlString)?.host else { return false }
+    return seersAllowedHosts.contains { h in host == h || host.hasSuffix("." + h) }
+}
+
+// Seers CMP registered ID (IAB TCF)
+func seersDefaultBadgeImage() -> UIImage? {
+    guard let data = Data(base64Encoded: seersDefaultBadgeBase64) else { return nil }
+    return UIImage(data: data)
+}
+
+func seersLoadRemoteImage(_ urlString: String?, completion: @escaping (UIImage?) -> Void) {
+    guard let urlString, let url = URL(string: urlString) else {
+        completion(nil)
+        return
+    }
+
+    URLSession.shared.dataTask(with: url) { data, _, _ in
+        let image = data.flatMap(UIImage.init(data:))
+        DispatchQueue.main.async {
+            completion(image)
+        }
+    }.resume()
+}
+
+// MARK: - IAB TCF v2.3
+
+/// Stores IAB TCF v2.3 consent signals in UserDefaults using the standard IABTCF_* keys.
+/// Spec: https://github.com/InteractiveAdvertisingBureau/GDPR-Transparency-and-Consent-Framework
+public struct SeersIABTCF {
+
+    // IAB TCF v2.3 purpose IDs mapped to Seers categories
+    // Purposes 1-10 are standard IAB TCF purposes
+    static let statisticsPurposes  = [7, 8, 9]   // Measure ad/content performance, audience insights
+    static let marketingPurposes   = [1, 2, 3, 4] // Store/access info, personalised ads, ad selection
+    static let preferencesPurposes = [5, 6]        // Personalised content, content selection
+
+    /// Write all IABTCF_* keys based on consent choices.
+    public static func store(
+        necessary: Bool,
+        preferences: Bool,
+        statistics: Bool,
+        marketing: Bool,
+        cmpId: Int = seersCmpId,
+        cmpVersion: Int = seersCmpVersion
+    ) {
+        let d = UserDefaults.standard
+
+        // Core CMP metadata
+        d.set(1,          forKey: "IABTCF_CmpSdkID")          // Our CMP ID
+        d.set(cmpVersion, forKey: "IABTCF_CmpSdkVersion")
+        d.set(1,          forKey: "IABTCF_PolicyVersion")      // TCF policy v4 → stored as 1 (applies)
+        d.set(1,          forKey: "IABTCF_gdprApplies")        // 1 = GDPR applies
+        d.set(1,          forKey: "IABTCF_UseNonStandardTexts")
+
+        // Build purpose consent string (10 purposes, index 0 = purpose 1)
+        var purposeConsents = Array(repeating: "0", count: 10)
+        purposeConsents[0] = "1" // Necessary (purpose 1) always on
+
+        if marketing {
+            for p in marketingPurposes   { if p <= 10 { purposeConsents[p-1] = "1" } }
+        }
+        if statistics {
+            for p in statisticsPurposes  { if p <= 10 { purposeConsents[p-1] = "1" } }
+        }
+        if preferences {
+            for p in preferencesPurposes { if p <= 10 { purposeConsents[p-1] = "1" } }
+        }
+
+        let purposeConsentsStr = purposeConsents.joined()
+        d.set(purposeConsentsStr, forKey: "IABTCF_PurposeConsents")
+
+        // Legitimate interests — only non-necessary purposes can use LI
+        var purposeLI = Array(repeating: "0", count: 10)
+        if statistics  { purposeLI[6] = "1"; purposeLI[7] = "1" } // purposes 7,8
+        if preferences { purposeLI[5] = "1" }                      // purpose 6
+        d.set(purposeLI.joined(), forKey: "IABTCF_PurposeLegitimateInterests")
+
+        // Special feature opt-ins (all off by default)
+        d.set("00", forKey: "IABTCF_SpecialFeaturesOptIns")
+
+        // Vendor consents — simplified: allow all IAB vendors if category consented
+        // In a full implementation this would use the GVL vendor list
+        d.set("",   forKey: "IABTCF_VendorConsents")
+        d.set("",   forKey: "IABTCF_VendorLegitimateInterests")
+
+        // Publisher restrictions — none
+        d.set("",   forKey: "IABTCF_PublisherRestrictions10")
+
+        // Publisher TC
+        d.set(purposeConsentsStr, forKey: "IABTCF_PublisherConsent")
+        d.set(purposeLI.joined(), forKey: "IABTCF_PublisherLegitimateInterests")
+
+        // Consent string — base64url encoded minimal TC string
+        d.set(buildTCString(purposeConsents: purposeConsents, cmpId: cmpId, cmpVersion: cmpVersion),
+              forKey: "IABTCF_TCString")
+
+        // Timestamp
+        d.set(Int(Date().timeIntervalSince1970), forKey: "IABTCF_ConsentTimestamp")
+    }
+
+    /// Returns the stored TCF data as a dictionary (equivalent of getTCData).
+    public static func getTCData() -> [String: Any] {
+        let d = UserDefaults.standard
+        return [
+            "tcString":                    d.string(forKey: "IABTCF_TCString") ?? "",
+            "cmpId":                       d.integer(forKey: "IABTCF_CmpSdkID"),
+            "cmpVersion":                  d.integer(forKey: "IABTCF_CmpSdkVersion"),
+            "gdprApplies":                 d.integer(forKey: "IABTCF_gdprApplies") == 1,
+            "purposeConsents":             d.string(forKey: "IABTCF_PurposeConsents") ?? "",
+            "purposeLegitimateInterests":  d.string(forKey: "IABTCF_PurposeLegitimateInterests") ?? "",
+            "specialFeaturesOptIns":       d.string(forKey: "IABTCF_SpecialFeaturesOptIns") ?? "",
+            "vendorConsents":              d.string(forKey: "IABTCF_VendorConsents") ?? "",
+            "publisherConsent":            d.string(forKey: "IABTCF_PublisherConsent") ?? "",
+            "consentTimestamp":            d.integer(forKey: "IABTCF_ConsentTimestamp"),
+        ]
+    }
+
+    /// Clears all IABTCF_* keys (e.g. on consent withdrawal).
+    public static func clear() {
+        let keys = [
+            "IABTCF_CmpSdkID", "IABTCF_CmpSdkVersion", "IABTCF_PolicyVersion",
+            "IABTCF_gdprApplies", "IABTCF_UseNonStandardTexts", "IABTCF_PurposeConsents",
+            "IABTCF_PurposeLegitimateInterests", "IABTCF_SpecialFeaturesOptIns",
+            "IABTCF_VendorConsents", "IABTCF_VendorLegitimateInterests",
+            "IABTCF_PublisherRestrictions10", "IABTCF_PublisherConsent",
+            "IABTCF_PublisherLegitimateInterests", "IABTCF_TCString", "IABTCF_ConsentTimestamp",
+        ]
+        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+    }
+
+    // Builds a minimal valid base64url TC string (TCF v2.2 core segment)
+    private static func buildTCString(purposeConsents: [String], cmpId: Int, cmpVersion: Int) -> String {
+        // Encode as 6-bit integers packed into bits, then base64url
+        // Version(6) Created(36) LastUpdated(36) CmpId(12) CmpVersion(12)
+        // ConsentScreen(6) ConsentLanguage(12) VendorListVersion(12) TcfPolicyVersion(6)
+        // IsServiceSpecific(1) UseNonStandardTexts(1) SpecialFeatureOptIns(12)
+        // PurposeConsents(24) PurposeLegitimateInterests(24) PurposeOneTreatment(1)
+        // PublisherCC(12) VendorConsents(maxId=0,encoding=0,numEntries=0)
+        // VendorLegitimateInterests(maxId=0,encoding=0,numEntries=0)
+        // PublisherRestrictions(numRestrictions=0)
+        let now = Int(Date().timeIntervalSince1970 * 10) // deciseconds
+        var bits = ""
+        bits += intToBits(2,          length: 6)   // version = 2
+        bits += intToBits(now,        length: 36)  // created
+        bits += intToBits(now,        length: 36)  // lastUpdated
+        bits += intToBits(cmpId,      length: 12)  // cmpId
+        bits += intToBits(cmpVersion, length: 12)  // cmpVersion
+        bits += intToBits(0,          length: 6)   // consentScreen
+        bits += langToBits("EN")                   // consentLanguage (12 bits)
+        bits += intToBits(48,         length: 12)  // vendorListVersion
+        bits += intToBits(4,          length: 6)   // tcfPolicyVersion = 4
+        bits += "0"                                // isServiceSpecific
+        bits += "0"                                // useNonStandardTexts
+        bits += String(repeating: "0", count: 12)  // specialFeatureOptIns
+        // purposeConsents: 24 bits (purposes 1-24, we use 1-10)
+        let pcBits = purposeConsents.joined() + String(repeating: "0", count: 14)
+        bits += pcBits
+        bits += String(repeating: "0", count: 24)  // purposeLegitimateInterests
+        bits += "0"                                // purposeOneTreatment
+        bits += langToBits("AA")                   // publisherCC
+        // VendorConsents: maxId=0, isRangeEncoding=0
+        bits += intToBits(0, length: 16)           // maxVendorId
+        bits += "0"                                // isRangeEncoding
+        // VendorLegitimateInterests: maxId=0, isRangeEncoding=0
+        bits += intToBits(0, length: 16)
+        bits += "0"
+        // PublisherRestrictions: numRestrictions=0
+        bits += intToBits(0, length: 12)
+        return base64urlEncode(bits)
+    }
+
+    private static func intToBits(_ value: Int, length: Int) -> String {
+        let bin = String(value, radix: 2)
+        let padded = String(repeating: "0", count: max(0, length - bin.count)) + bin
+        return String(padded.suffix(length))
+    }
+
+    private static func langToBits(_ lang: String) -> String {
+        let upper = lang.uppercased()
+        let chars = Array(upper)
+        guard chars.count >= 2 else { return String(repeating: "0", count: 12) }
+        let a = max(0, Int(chars[0].asciiValue ?? 65) - 65)
+        let b = max(0, Int(chars[1].asciiValue ?? 65) - 65)
+        return intToBits(a, length: 6) + intToBits(b, length: 6)
+    }
+
+    private static func base64urlEncode(_ bits: String) -> String {
+        var padded = bits
+        let rem = padded.count % 6
+        if rem != 0 { padded += String(repeating: "0", count: 6 - rem) }
+        let dict = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+        var result = ""
+        var i = padded.startIndex
+        while i < padded.endIndex {
+            let end = padded.index(i, offsetBy: 6)
+            let chunk = String(padded[i..<end])
+            if let idx = Int(chunk, radix: 2), idx < dict.count {
+                result.append(dict[idx])
+            }
+            i = end
+        }
+        return result
+    }
+}
+
 // MARK: - Models
 
 public struct SeersConsent: Codable {
@@ -10,10 +229,12 @@ public struct SeersConsent: Codable {
     public let preferences: Bool
     public let statistics: Bool
     public let marketing: Bool
+    public let doNotSell: Bool?
     public let timestamp: String
     public let expiry: String
     enum CodingKeys: String, CodingKey {
         case sdkKey = "sdk_key"
+        case doNotSell = "do_not_sell"
         case value, necessary, preferences, statistics, marketing, timestamp, expiry
     }
 }
@@ -89,8 +310,16 @@ public final class SeersCMP {
     }
     public static func getConsentMap() -> SeersConsentMap { shared.buildConsentMap() }
     public static func getConsent() -> SeersConsent? { guard let id = shared.settingsId else { return nil }; return shared.loadStoredConsent(sdkKey: id) }
-    public static func saveConsent(value: String, preferences: Bool, statistics: Bool, marketing: Bool) {
-        shared.persistConsent(value: value, preferences: preferences, statistics: statistics, marketing: marketing)
+    public static func getPrivacyFrameworks() -> [String: Any] { shared.buildPrivacyFrameworks() }
+    public static func frameworkEnabled(_ key: String) -> Bool {
+        guard let value = shared.frameworkValue(key) else { return false }
+        return (value as? Bool) == true || ((value as? [String: Any])?["enabled"] as? Bool) == true
+    }
+    public static func getConsentSignals(value: String = "custom", preferences: Bool = false, statistics: Bool = false, marketing: Bool = false, doNotSell: Bool? = nil, attStatus: String? = nil) -> [String: Any] {
+        shared.buildConsentSignals(value: value, preferences: preferences, statistics: statistics, marketing: marketing, doNotSell: doNotSell, attStatus: attStatus)
+    }
+    public static func saveConsent(value: String, preferences: Bool, statistics: Bool, marketing: Bool, doNotSell: Bool? = nil, attStatus: String? = nil) {
+        shared.persistConsent(value: value, preferences: preferences, statistics: statistics, marketing: marketing, doNotSell: doNotSell, attStatus: attStatus)
     }
 
     /// Set your app's bundle ID for security verification
@@ -113,42 +342,70 @@ public final class SeersCMP {
         if let stored = loadStoredConsent(sdkKey: key), !isExpired(stored) {
             let map = buildConsentMap()
             onConsentRestored?(stored, map)
+            // Still retry any queued consent in background
+            retryQueuedConsentIfNeeded()
             return
         }
-        // Cache-busting: changes every minute
         let ts = Int(Date().timeIntervalSince1970) / 60
         fetchConfig(sdkKey: key, ts: ts) { [weak self] config in
             guard let self = self, let config = config, config.eligible else { return }
             self.config = config
-
-            // App identity verification
             if let appId = SeersCMP.appId {
                 let registered = config.bundleId ?? config.packageName
                 if let reg = registered, !appId.lowercased().elementsEqual(reg.lowercased()) { return }
             }
-
             self.checkRegion(sdkKey: key) { region in
                 guard self.shouldShow(dialogue: config.dialogue, region: region) else { return }
                 let lang = self.resolveLanguage(config: config, region: region)
                 let payload = SeersBannerPayload(
                     dialogue: config.dialogue, banner: config.banner, language: lang,
-                    categories: config.categories, blockList: self.buildBlockList(config: config),
+                    categories: config.categories, privacyFrameworks: self.buildPrivacyFrameworks(), blockList: self.buildBlockList(config: config),
                     regulation: region?.regulation, sdkKey: key
                 )
                 self._lastPayload = payload
                 DispatchQueue.main.async {
-                    if let cb = self.onShowBanner {
-                        cb(payload)
-                    } else {
-                        self.autoShowBanner(payload)
-                    }
+                    if let cb = self.onShowBanner { cb(payload) } else { self.autoShowBanner(payload) }
+                }
+            }
+        }
+    }
+
+    // Auto retry queued consent with exponential backoff (max 5 attempts)
+    private func retryQueuedConsentIfNeeded() {
+        guard let key = settingsId,
+              UserDefaults.standard.data(forKey: "SeersConsentQueue_\(key)") != nil else { return }
+        scheduleRetry(sdkKey: key, attempt: 1)
+    }
+
+    private func scheduleRetry(sdkKey: String, attempt: Int) {
+        guard attempt <= 5 else { return }
+        let delay = pow(2.0, Double(attempt)) // 2, 4, 8, 16, 32 seconds
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self = self,
+                  let data = UserDefaults.standard.data(forKey: "SeersConsentQueue_\(sdkKey)"),
+                  let consent = try? JSONDecoder().decode(SeersConsent.self, from: data) else { return }
+            self.logConsent(sdkKey: sdkKey, consent: consent)
+            // If still queued after attempt, schedule next
+            DispatchQueue.global().asyncAfter(deadline: .now() + 1) { [weak self] in
+                if UserDefaults.standard.data(forKey: "SeersConsentQueue_\(sdkKey)") != nil {
+                    self?.scheduleRetry(sdkKey: sdkKey, attempt: attempt + 1)
                 }
             }
         }
     }
 
     private func autoShowBanner(_ payload: SeersBannerPayload) {
-        guard let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) else { return }
+        // Use connectedScenes for iOS 13+ (UIApplication.shared.windows deprecated iOS 15+)
+        let window: UIWindow?
+        if #available(iOS 13.0, *) {
+            window = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }
+        } else {
+            window = UIApplication.shared.keyWindow
+        }
+        guard let window = window else { return }
         let bannerVC = SeersBannerViewController(payload: payload) {
             // dismiss
         }
@@ -167,15 +424,27 @@ public final class SeersCMP {
             }
             guard let data = data,
                   let config = try? JSONDecoder().decode(SeersCMPConfig.self, from: data) else {
-                completion(nil); return
+                // Network failed — try cached config
+                completion(self.loadCachedConfig(sdkKey: sdkKey))
+                return
             }
+            self.cacheConfig(sdkKey: sdkKey, data: data)
             completion(config)
         }.resume()
     }
 
+    private func cacheConfig(sdkKey: String, data: Data) {
+        UserDefaults.standard.set(data, forKey: "SeersConfig_\(sdkKey)")
+    }
+
+    private func loadCachedConfig(sdkKey: String) -> SeersCMPConfig? {
+        guard let data = UserDefaults.standard.data(forKey: "SeersConfig_\(sdkKey)") else { return nil }
+        return try? JSONDecoder().decode(SeersCMPConfig.self, from: data)
+    }
+
     private func checkRegion(sdkKey: String, completion: @escaping (SeersRegion?) -> Void) {
         let host = config?.cxHost ?? ""
-        guard !host.isEmpty, let url = URL(string: "\(host)/api/mobile/sdk/\(sdkKey)") else {
+        guard !host.isEmpty, seersIsAllowedHost(host), let url = URL(string: "\(host)/api/mobile/sdk/\(sdkKey)") else {
             completion(nil); return
         }
         var req = URLRequest(url: url)
@@ -246,15 +515,21 @@ public final class SeersCMP {
         )
     }
 
-    func persistConsent(value: String, preferences: Bool, statistics: Bool, marketing: Bool) {
+    func persistConsent(value: String, preferences: Bool, statistics: Bool, marketing: Bool, doNotSell: Bool? = nil, attStatus: String? = nil) {
         guard let key = settingsId else { return }
         let expiry = Calendar.current.date(byAdding: .day, value: config?.dialogue?.agreementExpire ?? 365, to: Date()) ?? Date()
         let formatter = ISO8601DateFormatter()
+        let privacySignals = buildConsentSignals(value: value, preferences: preferences, statistics: statistics, marketing: marketing, doNotSell: doNotSell, attStatus: attStatus)
         let consent = SeersConsent(sdkKey: key, value: value, necessary: true,
             preferences: preferences, statistics: statistics, marketing: marketing,
+            doNotSell: ((privacySignals["universalOptOut"] as? [String: Any])?["doNotSell"] as? Bool) == true,
             timestamp: formatter.string(from: Date()), expiry: formatter.string(from: expiry))
         if let data = try? JSONEncoder().encode(consent) {
             UserDefaults.standard.set(data, forKey: "SeersConsent_\(key)")
+        }
+        // Store IAB TCF v2.3 keys (only if enabled in dashboard)
+        if config?.dialogue?.enableIabTcf == true {
+            SeersIABTCF.store(necessary: true, preferences: preferences, statistics: statistics, marketing: marketing)
         }
         logConsent(sdkKey: key, consent: consent)
         let map = buildConsentMap()
@@ -272,9 +547,25 @@ public final class SeersCMP {
         return Date() > expiry
     }
 
+    // Returns a stable anonymous device ID scoped to this sdk_key.
+    // Generated once, stored in UserDefaults, never changes.
+    // Used for MAU deduplication — not linked to any PII.
+    private func getOrCreateDeviceId(sdkKey: String) -> String {
+        let key = "SeersDeviceId_\(sdkKey)"
+        if let existing = UserDefaults.standard.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+        let newId = UUID().uuidString
+        UserDefaults.standard.set(newId, forKey: key)
+        return newId
+    }
+
     private func logConsent(sdkKey: String, consent: SeersConsent) {
         let host = config?.cxHost ?? ""
-        guard !host.isEmpty, let url = URL(string: "\(host)/api/mobile/sdk/save-consent") else { return }
+        guard !host.isEmpty, seersIsAllowedHost(host), let url = URL(string: "\(host)/api/mobile/sdk/save-consent") else {
+            queueConsent(sdkKey: sdkKey, consent: consent)
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -289,12 +580,44 @@ public final class SeersCMP {
                 "marketing":   consent.marketing,
             ],
             "timestamp":  consent.timestamp,
+            // Stable anonymous device ID for MAU deduplication — not PII
+            "device_id":  getOrCreateDeviceId(sdkKey: sdkKey),
         ]
+        body["do_not_sell"] = consent.doNotSell == true
+        body["privacy_signals"] = buildConsentSignals(value: consent.value, preferences: consent.preferences, statistics: consent.statistics, marketing: consent.marketing, doNotSell: consent.doNotSell == true)
         if let v = SeersCMP.appVersion { body["app_version"] = v }
         if let e = SeersCMP.userEmail  { body["email"]       = e }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request).resume()
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            if error != nil || (response as? HTTPURLResponse)?.statusCode != 200 {
+                self?.queueConsent(sdkKey: sdkKey, consent: consent)
+            } else {
+                self?.clearQueuedConsent(sdkKey: sdkKey)
+            }
+        }.resume()
     }
+
+    private func queueConsent(sdkKey: String, consent: SeersConsent) {
+        if let data = try? JSONEncoder().encode(consent) {
+            UserDefaults.standard.set(data, forKey: "SeersConsentQueue_\(sdkKey)")
+        }
+    }
+
+    private func clearQueuedConsent(sdkKey: String) {
+        UserDefaults.standard.removeObject(forKey: "SeersConsentQueue_\(sdkKey)")
+    }
+
+    /// Call this when the app regains connectivity (e.g. from AppDelegate reachability callback).
+    public static func retryQueuedConsent() {
+        guard let key = shared.settingsId,
+              let data = UserDefaults.standard.data(forKey: "SeersConsentQueue_\(key)"),
+              let consent = try? JSONDecoder().decode(SeersConsent.self, from: data) else { return }
+        shared.logConsent(sdkKey: key, consent: consent)
+    }
+
+    /// Returns IAB TCF v2.3 consent data (IABTCF_* keys).
+    /// Use this to pass TCF data to ad SDKs that require it.
+    public static func getTCData() -> [String: Any] { SeersIABTCF.getTCData() }
 
     /// Optional: set app version for consent log enrichment.
     ///   SeersCMP.appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
@@ -303,6 +626,58 @@ public final class SeersCMP {
     /// Optional: set user email for consent log enrichment.
     ///   SeersCMP.userEmail = "user@example.com"
     public static var userEmail: String?
+
+    func buildPrivacyFrameworks() -> [String: Any] {
+        let d = config?.dialogue
+        let platform = config?.platform
+        return [
+            "google_consent_mode_v2": ["enabled": d?.applyGoogleConsent == true],
+            "iab_tcf": ["enabled": d?.enableIabTcf == true, "version": "2.3"],
+            "apple_att": ["enabled": d?.appleAtt == true, "applies": ["ios", "both", "react_native", "flutter"].contains(platform ?? "")],
+            "google_play_disclosure": ["enabled": d?.googlePlayDisclosure == true, "applies": ["android", "both", "react_native", "flutter"].contains(platform ?? "")],
+            "universal_opt_out": ["enabled": d?.universalOptOut == true, "signal": "do_not_sell_or_share"],
+            "conditional": [
+                "gpp": d?.enableGpp == true,
+                "microsoft_clarity": d?.microsoftClarityConsent == true,
+                "meta_facebook_sdk": d?.metaSdkConsent == true,
+                "microsoft_ads": d?.microsoftAdsConsent == true,
+                "amazon_ads": d?.amazonAdsConsent == true,
+            ],
+        ]
+    }
+
+    func frameworkValue(_ key: String) -> Any? {
+        var node: Any? = buildPrivacyFrameworks()
+        for part in key.split(separator: ".").map(String.init) {
+            guard let dict = node as? [String: Any] else { return nil }
+            node = dict[part]
+        }
+        return node
+    }
+
+    func buildConsentSignals(value: String, preferences: Bool, statistics: Bool, marketing: Bool, doNotSell: Bool?, attStatus: String? = nil) -> [String: Any] {
+        let frameworks = buildPrivacyFrameworks()
+        let apple = frameworks["apple_att"] as? [String: Any] ?? [:]
+        let play = frameworks["google_play_disclosure"] as? [String: Any] ?? [:]
+        let google = frameworks["google_consent_mode_v2"] as? [String: Any] ?? [:]
+        let iab = frameworks["iab_tcf"] as? [String: Any] ?? [:]
+        let opt = frameworks["universal_opt_out"] as? [String: Any] ?? [:]
+        let optOut = doNotSell ?? (value == "disagree")
+        return [
+            "appleATT": ["enabled": apple["enabled"] as? Bool == true, "applies": apple["applies"] as? Bool == true, "status": (attStatus as Any?) ?? NSNull()],
+            "googlePlayDisclosure": ["enabled": play["enabled"] as? Bool == true, "applies": play["applies"] as? Bool == true],
+            "googleConsentModeV2": [
+                "enabled": google["enabled"] as? Bool == true,
+                "analytics_storage": statistics ? "granted" : "denied",
+                "ad_storage": marketing ? "granted" : "denied",
+                "ad_user_data": marketing ? "granted" : "denied",
+                "ad_personalization": marketing ? "granted" : "denied",
+            ],
+            "iabTCF": ["enabled": iab["enabled"] as? Bool == true, "version": iab["version"] ?? "2.3"],
+            "universalOptOut": ["enabled": opt["enabled"] as? Bool == true, "signal": opt["signal"] ?? "do_not_sell_or_share", "doNotSell": optOut],
+            "conditional": frameworks["conditional"] ?? [:],
+        ]
+    }
 
     func checkBlockWithConsent(_ identifier: String, consent: SeersConsent) -> Bool {
         let result = checkShouldBlock(identifier)
@@ -332,6 +707,22 @@ public final class SeersCMP {
 
 // MARK: - Banner ViewController (auto-show)
 
+final class SeersPassthroughView: UIView {
+    var passthroughViews: [UIView] = []
+    var blocksAllTouches = true
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        if blocksAllTouches {
+            return super.point(inside: point, with: event)
+        }
+
+        return passthroughViews.contains { view in
+            let converted = convert(point, to: view)
+            return view.point(inside: converted, with: event)
+        }
+    }
+}
+
 public class SeersBannerViewController: UIViewController {
 
     private let payload:   SeersBannerPayload
@@ -339,9 +730,13 @@ public class SeersBannerViewController: UIViewController {
 
     /// Set to true before presenting to skip directly to the preferences panel.
     var isShowingPreferences: Bool = false
+    private var bannerVisible = true
+    private var badgeVisible = false
+    private var badgeTimeoutWorkItem: DispatchWorkItem?
+    private weak var badgeButton: UIButton?
 
-    // ── Preference toggle state (preferences starts ON — matches Flutter) ──
-    private var prefOn = true
+    // ── Preference toggle state mirrors the backend dialogue defaults. ──
+    private var prefOn = false
     private var statOn = false
     private var mktOn  = false
     private var expandedKeys = Set<String>()
@@ -355,14 +750,88 @@ public class SeersBannerViewController: UIViewController {
     public init(payload: SeersBannerPayload, onDismiss: @escaping () -> Void) {
         self.payload   = payload
         self.onDismiss = onDismiss
+        self.prefOn    = payload.dialogue?.preferencesChecked ?? false
+        self.statOn    = payload.dialogue?.statisticsChecked ?? false
+        self.mktOn     = payload.dialogue?.targetingChecked ?? false
         super.init(nibName: nil, bundle: nil)
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    public override func loadView() {
+        view = SeersPassthroughView()
+    }
+
     public override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        if isShowingPreferences { setupPreferences() } else { setupBanner() }
+        refreshUI()
+    }
+
+    deinit {
+        badgeTimeoutWorkItem?.cancel()
+    }
+
+    private var hasBadge: Bool { payload.dialogue?.hasBadge ?? false }
+    private var bannerTimeout: Int { payload.dialogue?.bannerTimeout ?? 0 }
+    private var showLogo: Bool { (payload.dialogue?.logoStatus ?? "default") != "none" }
+    private var logoURL: String { payload.dialogue?.logoLink ?? seersDefaultLogoURL }
+    private var customBadgeURL: String? {
+        guard payload.dialogue?.badgeStatus == "custom" else { return nil }
+        return payload.dialogue?.badgeLink
+    }
+
+    private func refreshUI() {
+        badgeTimeoutWorkItem?.cancel()
+        view.subviews.forEach { $0.removeFromSuperview() }
+        badgeButton = nil
+
+        let passthroughView = view as? SeersPassthroughView
+        passthroughView?.passthroughViews = []
+        passthroughView?.blocksAllTouches = isShowingPreferences || bannerVisible
+        view.backgroundColor = .clear
+
+        if isShowingPreferences {
+            setupPreferences()
+            return
+        }
+
+        if badgeVisible, hasBadge {
+            setupBadge()
+            return
+        }
+
+        guard bannerVisible else { return }
+        setupBanner()
+    }
+
+    private func showBadgeOnly() {
+        badgeTimeoutWorkItem?.cancel()
+        if hasBadge {
+            isShowingPreferences = false
+            bannerVisible = false
+            badgeVisible = true
+            refreshUI()
+            return
+        }
+
+        dismiss(animated: true) { self.onDismiss() }
+    }
+
+    private func reopenBannerFromBadge() {
+        badgeTimeoutWorkItem?.cancel()
+        badgeVisible = false
+        bannerVisible = true
+        refreshUI()
+
+        guard hasBadge, bannerTimeout > 0 else { return }
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.isShowingPreferences = false
+            self.bannerVisible = false
+            self.badgeVisible = true
+            self.refreshUI()
+        }
+        badgeTimeoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(bannerTimeout), execute: workItem)
     }
 
     // MARK: - Theme helpers (shared by both views)
@@ -389,6 +858,18 @@ public class SeersBannerViewController: UIViewController {
         return t.contains("rounded") ? 20 : t.contains("flat") ? 0 : 4
     }
     private var isStroke: Bool { (payload.banner?.buttonType ?? "").contains("stroke") }
+    private var dialogRadius: CGFloat {
+        let layout = payload.banner?.layout ?? "default"
+        if layout == "rounded" { return 20 }
+        if layout == "flat" { return 0 }
+        return 10
+    }
+    private var sheetRadius: CGFloat {
+        let layout = payload.banner?.layout ?? "default"
+        if layout == "flat" { return 0 }
+        if layout == "rounded" { return 16 }
+        return 14
+    }
 
     // MARK: - Banner panel
 
@@ -396,19 +877,27 @@ public class SeersBannerViewController: UIViewController {
         let c   = themeColors
         let l   = payload.language
         let d   = payload.dialogue
+        let tmpl = d?.mobileTemplate ?? "popup"
+        let layout = payload.banner?.layout ?? "default"
+        let position = payload.banner?.position ?? "bottom"
 
         let allowReject = d?.allowReject ?? true
         let poweredBy   = d?.poweredBy   ?? true
         let bodyText    = l?.body               ?? "We use cookies to personalize content and ads."
+        let titleText   = l?.title              ?? "We use cookies"
         let btnAgree    = l?.btnAgreeTitle      ?? "Allow All"
         let btnDecline  = l?.btnDisagreeTitle   ?? "Disable All"
         let btnPref     = l?.btnPreferenceTitle ?? "Cookie settings"
 
-        // Container — rounded top corners
         let container = UIView()
         container.backgroundColor = c.bg
-        container.layer.cornerRadius = 12
-        container.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        container.layer.cornerRadius = dialogRadius
+        if tmpl != "dialog" {
+            container.layer.cornerRadius = sheetRadius
+            container.layer.maskedCorners = position == "top"
+                ? [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+                : [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        }
         container.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(container)
 
@@ -417,51 +906,170 @@ public class SeersBannerViewController: UIViewController {
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
-        // Body
-        let bodyLabel = makeLabel(bodyText, size: fs, color: c.body, alpha: 0.9, lines: 0)
-        stack.addArrangedSubview(bodyLabel)
-
-        // Allow All
-        let agreeBg = isStroke ? UIColor.clear : c.agree
-        let agreeFg = isStroke ? c.agree       : c.agreeText
-        stack.addArrangedSubview(makeBtn(btnAgree, bg: agreeBg, fg: agreeFg, outline: isStroke) { [weak self] in
-            SeersCMP.saveConsent(value: "agree", preferences: true, statistics: true, marketing: true)
-            self?.dismiss(animated: true) { self?.onDismiss() }
-        })
-
-        // Decline
-        if allowReject {
-            stack.addArrangedSubview(makeBtn(btnDecline, bg: c.decline, fg: c.declineText) { [weak self] in
-                SeersCMP.saveConsent(value: "disagree", preferences: false, statistics: false, marketing: false)
-                self?.dismiss(animated: true) { self?.onDismiss() }
-            })
+        if tmpl == "bottom_sheet", layout == "rounded" {
+            let handle = UIView()
+            handle.backgroundColor = UIColor(white: 0.8, alpha: 1)
+            handle.layer.cornerRadius = 2
+            handle.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                handle.widthAnchor.constraint(equalToConstant: 32),
+                handle.heightAnchor.constraint(equalToConstant: 4),
+            ])
+            let wrap = UIView()
+            wrap.translatesAutoresizingMaskIntoConstraints = false
+            wrap.addSubview(handle)
+            NSLayoutConstraint.activate([
+                handle.centerXAnchor.constraint(equalTo: wrap.centerXAnchor),
+                handle.topAnchor.constraint(equalTo: wrap.topAnchor),
+                handle.bottomAnchor.constraint(equalTo: wrap.bottomAnchor),
+            ])
+            stack.addArrangedSubview(wrap)
+            stack.setCustomSpacing(6, after: wrap)
         }
 
-        // Cookie settings — opens preferences
-        stack.addArrangedSubview(makeBtn(btnPref, bg: .clear, fg: c.pref, outline: true) { [weak self] in
-            guard let self = self else { return }
-            let prefVC = SeersBannerViewController(payload: self.payload, onDismiss: self.onDismiss)
-            prefVC.isShowingPreferences = true
-            prefVC.modalPresentationStyle = .overFullScreen
-            prefVC.modalTransitionStyle   = .coverVertical
-            self.present(prefVC, animated: true)
-        })
+        if tmpl != "popup" {
+            let titleLabel = makeLabel(titleText, size: titleFs, color: color(payload.banner?.titleTextColor ?? "#1a1a1a"), bold: true, lines: 0)
+            stack.addArrangedSubview(titleLabel)
+            stack.setCustomSpacing(4, after: titleLabel)
+        }
 
-        if poweredBy {
+        let bodyLabel = makeLabel(bodyText, size: fs, color: c.body, alpha: 0.9, lines: 0)
+        stack.addArrangedSubview(bodyLabel)
+        stack.setCustomSpacing(tmpl == "dialog" ? 8 : 7, after: bodyLabel)
+
+        if tmpl == "bottom_sheet" {
+            let row = UIStackView()
+            row.axis = .horizontal
+            row.spacing = 4
+
+            if allowReject {
+                let declineBtn = makeRowButton(btnDecline, bg: c.decline, fg: c.declineText) { [weak self] in
+                    self?.save(value: "disagree", pref: false, stat: false, mkt: false)
+                }
+                row.addArrangedSubview(declineBtn)
+            }
+
+            let agreeBtn = makeRowButton(btnAgree, bg: c.agree, fg: c.agreeText) { [weak self] in
+                self?.save(value: "agree", pref: true, stat: true, mkt: true)
+            }
+            row.addArrangedSubview(agreeBtn)
+            stack.addArrangedSubview(row)
+            stack.setCustomSpacing(4, after: row)
+
+            let prefBtn = makeBtn(btnPref, bg: .clear, fg: c.pref, outline: true) { [weak self] in
+                self?.badgeTimeoutWorkItem?.cancel()
+                self?.isShowingPreferences = true
+                self?.refreshUI()
+            }
+            stack.addArrangedSubview(prefBtn)
+        } else {
+            let agreeBg = isStroke ? UIColor.clear : c.agree
+            let agreeFg = isStroke ? c.agree : c.agreeText
+            let agreeBtn = makeBtn(btnAgree, bg: agreeBg, fg: agreeFg, outline: isStroke) { [weak self] in
+                self?.save(value: "agree", pref: true, stat: true, mkt: true)
+            }
+            stack.addArrangedSubview(agreeBtn)
+
+            if allowReject {
+                let declineBtn = makeBtn(btnDecline, bg: c.decline, fg: c.declineText) { [weak self] in
+                    self?.save(value: "disagree", pref: false, stat: false, mkt: false)
+                }
+                stack.addArrangedSubview(declineBtn)
+            }
+
+            let prefBtn = makeBtn(btnPref, bg: .clear, fg: c.pref, outline: true) { [weak self] in
+                self?.badgeTimeoutWorkItem?.cancel()
+                self?.isShowingPreferences = true
+                self?.refreshUI()
+            }
+            stack.addArrangedSubview(prefBtn)
+        }
+
+        if poweredBy, tmpl != "dialog" {
             let pw = makeLabel("Powered by Seers", size: fs * 0.7, color: UIColor(white: 0.67, alpha: 1))
             pw.textAlignment = .center
             stack.addArrangedSubview(pw)
         }
 
-        NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            container.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        var constraints = [
             stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
             stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
             stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-            stack.bottomAnchor.constraint(equalTo: container.safeAreaLayoutGuide.bottomAnchor, constant: -10),
+        ]
+
+        if tmpl == "dialog" {
+            constraints += [
+                container.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                container.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                container.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.88),
+                stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
+            ]
+        } else {
+            constraints += [
+                container.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                container.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                position == "top"
+                    ? container.topAnchor.constraint(equalTo: view.topAnchor)
+                    : container.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+                stack.bottomAnchor.constraint(equalTo: container.safeAreaLayoutGuide.bottomAnchor, constant: -10),
+            ]
+        }
+
+        NSLayoutConstraint.activate(constraints)
+    }
+
+    private func setupBadge() {
+        let button = UIButton(type: .custom)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.accessibilityLabel = "Open cookie settings"
+        button.addAction(UIAction { [weak self] _ in
+            self?.reopenBannerFromBadge()
+        }, for: .touchUpInside)
+        view.addSubview(button)
+        badgeButton = button
+
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(imageView)
+
+        if let customBadgeURL {
+            seersLoadRemoteImage(customBadgeURL) { image in
+                imageView.image = image ?? seersDefaultBadgeImage()
+            }
+        } else {
+            imageView.image = seersDefaultBadgeImage()
+        }
+
+        NSLayoutConstraint.activate([
+            button.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+            button.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            button.widthAnchor.constraint(equalToConstant: 34),
+            button.heightAnchor.constraint(equalToConstant: 34),
+            imageView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+            imageView.topAnchor.constraint(equalTo: button.topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: button.bottomAnchor),
         ])
+
+        (view as? SeersPassthroughView)?.passthroughViews = [button]
+    }
+
+    private func makeRemoteImageView(url: String, height: CGFloat) -> UIImageView? {
+        let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFit
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.heightAnchor.constraint(equalToConstant: height).isActive = true
+        seersLoadRemoteImage(url) { image in
+            imageView.image = image
+        }
+        return imageView
+    }
+
+    private func makeRowButton(_ title: String, bg: UIColor, fg: UIColor, action: @escaping () -> Void) -> UIButton {
+        let button = makeBtn(title, bg: bg, fg: fg, action: action)
+        button.titleLabel?.font = .systemFont(ofSize: fs, weight: .semibold)
+        return button
     }
 
     // MARK: - Preferences panel
@@ -497,23 +1105,35 @@ public class SeersBannerViewController: UIViewController {
         content.translatesAutoresizingMaskIntoConstraints = false
         scroll.addSubview(content)
 
-        // ── Close ✕ ──
-        let closeRow = UIView()
+        // ── Header row: logo left, close right ──
+        let closeRow = UIStackView()
+        closeRow.axis = .horizontal
+        closeRow.alignment = .center
+        closeRow.spacing = 8
+
+        if let logoView = makeRemoteImageView(url: logoURL, height: 28), showLogo {
+            logoView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            closeRow.addArrangedSubview(logoView)
+        } else {
+            closeRow.addArrangedSubview(UIView())
+        }
+
+        let spacer = UIView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        closeRow.addArrangedSubview(spacer)
+
         let closeBtn = UIButton(type: .system)
         closeBtn.setTitle("✕", for: .normal)
         closeBtn.setTitleColor(c.body, for: .normal)
         closeBtn.titleLabel?.font = .boldSystemFont(ofSize: fs)
         closeBtn.translatesAutoresizingMaskIntoConstraints = false
-        closeRow.addSubview(closeBtn)
-        closeRow.translatesAutoresizingMaskIntoConstraints = false
+        closeRow.addArrangedSubview(closeBtn)
         NSLayoutConstraint.activate([
-            closeBtn.trailingAnchor.constraint(equalTo: closeRow.trailingAnchor),
-            closeBtn.topAnchor.constraint(equalTo: closeRow.topAnchor),
-            closeBtn.bottomAnchor.constraint(equalTo: closeRow.bottomAnchor),
             closeRow.heightAnchor.constraint(equalToConstant: 28),
         ])
         closeBtn.addAction(UIAction { [weak self] _ in
-            self?.dismiss(animated: true) { self?.onDismiss() }
+            self?.isShowingPreferences = false
+            self?.refreshUI()
         }, for: .touchUpInside)
         content.addArrangedSubview(closeRow)
 
@@ -541,8 +1161,7 @@ public class SeersBannerViewController: UIViewController {
         // ── Allow All ──
         content.addArrangedSubview(makePrefActionBtn(
             l?.btnAgreeTitle ?? "Allow All", bg: c.agree, fg: c.agreeText) { [weak self] in
-                SeersCMP.saveConsent(value: "agree", preferences: true, statistics: true, marketing: true)
-                self?.dismiss(animated: true) { self?.onDismiss() }
+                self?.save(value: "agree", pref: true, stat: true, mkt: true)
         })
         content.setCustomSpacing(4, after: content.arrangedSubviews.last!)
 
@@ -550,8 +1169,7 @@ public class SeersBannerViewController: UIViewController {
         content.addArrangedSubview(makePrefActionBtn(
             l?.btnDisagreeTitle ?? "Disable All",
             bg: color("#1a1a2e"), fg: .white) { [weak self] in
-                SeersCMP.saveConsent(value: "disagree", preferences: false, statistics: false, marketing: false)
-                self?.dismiss(animated: true) { self?.onDismiss() }
+                self?.save(value: "disagree", pref: false, stat: false, mkt: false)
         })
         content.setCustomSpacing(8, after: content.arrangedSubviews.last!)
 
@@ -592,10 +1210,10 @@ public class SeersBannerViewController: UIViewController {
         let saveBtn = makePrefActionBtn(
             l?.btnSaveMyChoices ?? "Save my choices", bg: c.agree, fg: c.agreeText) { [weak self] in
                 guard let self = self else { return }
-                SeersCMP.saveConsent(value: "custom",
-                    preferences: self.prefOn, statistics: self.statOn, marketing: self.mktOn)
-                self.dismiss(animated: true) { self.onDismiss() }
+                self.save(value: "custom", pref: self.prefOn, stat: self.statOn, mkt: self.mktOn)
         }
+        saveBtn.accessibilityLabel = l?.btnSaveMyChoices ?? "Save my choices"
+        saveBtn.accessibilityHint  = "Saves your cookie preferences and closes the panel"
         saveBtn.translatesAutoresizingMaskIntoConstraints = false
         footer.addSubview(saveBtn)
         panel.addSubview(footer)
@@ -686,6 +1304,8 @@ public class SeersBannerViewController: UIViewController {
             let sw = UISwitch()
             sw.onTintColor = c.agree
             sw.transform   = CGAffineTransform(scaleX: 0.75, scaleY: 0.75)
+            sw.accessibilityLabel = cat.label
+            sw.accessibilityHint  = "Double tap to toggle \(cat.label) cookies"
             switch cat.key {
             case "preferences": sw.isOn = prefOn
             case "statistics":  sw.isOn = statOn
@@ -755,6 +1375,11 @@ public class SeersBannerViewController: UIViewController {
             self.descContainers[key]?.isHidden  = isOpen
             self.arrowLabels[key]?.transform     = isOpen ? .identity : CGAffineTransform(rotationAngle: .pi / 2)
         }
+    }
+
+    private func save(value: String, pref: Bool, stat: Bool, mkt: Bool) {
+        SeersCMP.saveConsent(value: value, preferences: pref, statistics: stat, marketing: mkt)
+        showBadgeOnly()
     }
 
     // MARK: - Shared button/label factories
@@ -861,19 +1486,62 @@ public struct SeersCMPConfig: Codable {
 
 public struct SeersCMPDialogue: Codable {
     public let regionDetection: Bool; public let agreementExpire: Int
-    public let defaultLanguage: String?; public let allowReject: Bool; public let poweredBy: Bool
+    public let defaultLanguage: String?
+    public let preferencesChecked: Bool; public let statisticsChecked: Bool; public let targetingChecked: Bool
+    public let allowReject: Bool; public let poweredBy: Bool
     public let mobileTemplate: String?; public let regionSelection: Int
+    public let hasBadge: Bool; public let badgeLink: String?; public let badgeStatus: String?
+    public let logoLink: String?; public let logoStatus: String?; public let bannerTimeout: Int
+    public let enableIabTcf: Bool; public let applyGoogleConsent: Bool
+    public let appleAtt: Bool; public let googlePlayDisclosure: Bool; public let universalOptOut: Bool
+    public let enableGpp: Bool; public let microsoftClarityConsent: Bool; public let metaSdkConsent: Bool
+    public let microsoftAdsConsent: Bool; public let amazonAdsConsent: Bool
     enum CodingKeys: String, CodingKey {
         case regionDetection = "region_detection"; case agreementExpire = "agreement_expire"
-        case defaultLanguage = "default_language"; case allowReject = "allow_reject"
+        case defaultLanguage = "default_language"
+        case preferencesChecked = "preferences_checked"; case statisticsChecked = "statistics_checked"
+        case targetingChecked = "targeting_checked"; case allowReject = "allow_reject"
         case poweredBy = "powered_by"; case mobileTemplate = "mobile_template"
         case regionSelection = "region_selection"
+        case hasBadge = "has_badge"; case badgeLink = "badge_link"; case badgeStatus = "badge_status"
+        case logoLink = "logo_link"; case logoStatus = "logo_status"; case bannerTimeout = "banner_timeout"
+        case enableIabTcf = "enable_iab_tcf"; case applyGoogleConsent = "apply_google_consent"
+        case appleAtt = "apple_att"; case googlePlayDisclosure = "google_play_disclosure"; case universalOptOut = "universal_opt_out"
+        case enableGpp = "enable_gpp"; case microsoftClarityConsent = "microsoft_clarity_consent"; case metaSdkConsent = "meta_sdk_consent"
+        case microsoftAdsConsent = "microsoft_ads_consent"; case amazonAdsConsent = "amazon_ads_consent"
     }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         regionDetection  = (try? c.decode(Bool.self, forKey: .regionDetection)) ?? false
         agreementExpire  = (try? c.decode(Int.self,  forKey: .agreementExpire)) ?? 365
         defaultLanguage  = try? c.decode(String.self, forKey: .defaultLanguage)
+        if let value = try? c.decode(Bool.self, forKey: .preferencesChecked) {
+            preferencesChecked = value
+        } else if let value = try? c.decode(Int.self, forKey: .preferencesChecked) {
+            preferencesChecked = value == 1
+        } else if let value = try? c.decode(String.self, forKey: .preferencesChecked) {
+            preferencesChecked = value == "1" || value.lowercased() == "true"
+        } else {
+            preferencesChecked = false
+        }
+        if let value = try? c.decode(Bool.self, forKey: .statisticsChecked) {
+            statisticsChecked = value
+        } else if let value = try? c.decode(Int.self, forKey: .statisticsChecked) {
+            statisticsChecked = value == 1
+        } else if let value = try? c.decode(String.self, forKey: .statisticsChecked) {
+            statisticsChecked = value == "1" || value.lowercased() == "true"
+        } else {
+            statisticsChecked = false
+        }
+        if let value = try? c.decode(Bool.self, forKey: .targetingChecked) {
+            targetingChecked = value
+        } else if let value = try? c.decode(Int.self, forKey: .targetingChecked) {
+            targetingChecked = value == 1
+        } else if let value = try? c.decode(String.self, forKey: .targetingChecked) {
+            targetingChecked = value == "1" || value.lowercased() == "true"
+        } else {
+            targetingChecked = false
+        }
         allowReject      = (try? c.decode(Bool.self, forKey: .allowReject)) ?? true
         poweredBy        = (try? c.decode(Bool.self, forKey: .poweredBy))   ?? true
         mobileTemplate   = try? c.decode(String.self, forKey: .mobileTemplate)
@@ -885,6 +1553,36 @@ public struct SeersCMPDialogue: Codable {
         } else {
             regionSelection = 1 // default GDPR
         }
+        if let value = try? c.decode(Bool.self, forKey: .hasBadge) {
+            hasBadge = value
+        } else if let value = try? c.decode(Int.self, forKey: .hasBadge) {
+            hasBadge = value == 1
+        } else if let value = try? c.decode(String.self, forKey: .hasBadge) {
+            hasBadge = value == "1" || value.lowercased() == "true"
+        } else {
+            hasBadge = false
+        }
+        badgeLink = try? c.decode(String.self, forKey: .badgeLink)
+        badgeStatus = try? c.decode(String.self, forKey: .badgeStatus)
+        logoLink = try? c.decode(String.self, forKey: .logoLink)
+        logoStatus = try? c.decode(String.self, forKey: .logoStatus)
+        if let value = try? c.decode(Int.self, forKey: .bannerTimeout) {
+            bannerTimeout = value
+        } else if let value = try? c.decode(String.self, forKey: .bannerTimeout), let parsed = Int(value) {
+            bannerTimeout = parsed
+        } else {
+            bannerTimeout = 0
+        }
+        enableIabTcf = (try? c.decode(Bool.self, forKey: .enableIabTcf)) ?? false
+        applyGoogleConsent = (try? c.decode(Bool.self, forKey: .applyGoogleConsent)) ?? false
+        appleAtt = (try? c.decode(Bool.self, forKey: .appleAtt)) ?? false
+        googlePlayDisclosure = (try? c.decode(Bool.self, forKey: .googlePlayDisclosure)) ?? false
+        universalOptOut = (try? c.decode(Bool.self, forKey: .universalOptOut)) ?? false
+        enableGpp = (try? c.decode(Bool.self, forKey: .enableGpp)) ?? false
+        microsoftClarityConsent = (try? c.decode(Bool.self, forKey: .microsoftClarityConsent)) ?? false
+        metaSdkConsent = (try? c.decode(Bool.self, forKey: .metaSdkConsent)) ?? false
+        microsoftAdsConsent = (try? c.decode(Bool.self, forKey: .microsoftAdsConsent)) ?? false
+        amazonAdsConsent = (try? c.decode(Bool.self, forKey: .amazonAdsConsent)) ?? false
     }
 }
 
@@ -935,7 +1633,14 @@ public struct SeersCMPBlockDomain: Codable {
 }
 
 public struct SeersRegion: Codable {
-    public let eligible: Bool?; public let regulation: String?; public let data: SeersGeoData?
+    public let eligible: Bool?
+    public let regulation: String?
+    public let regionSelection: Int?
+    public let data: SeersGeoData?
+    enum CodingKeys: String, CodingKey {
+        case eligible, regulation, data
+        case regionSelection = "region_selection"
+    }
 }
 
 public struct SeersGeoData: Codable {
@@ -951,5 +1656,6 @@ public struct SeersBlockList {
 public struct SeersBannerPayload {
     public let dialogue: SeersCMPDialogue?; public let banner: SeersCMPBanner?
     public let language: SeersCMPLanguage?; public let categories: [SeersCMPCategory]?
+    public let privacyFrameworks: [String: Any]
     public let blockList: SeersBlockList; public let regulation: String?; public let sdkKey: String
 }
