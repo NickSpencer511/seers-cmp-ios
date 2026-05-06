@@ -12,7 +12,7 @@ private let seersCmpVersion = 1
 // Google Consent Mode v2 developer ID
 private let seersGoogleDevId = "dNmU0M2"
 // Allowlist of trusted Seers hosts — prevents SSRF (CWE-918)
-private let seersAllowedHosts = ["consents.dev", "seers.ai", "seersco.com", "cdn.consents.dev"]
+private let seersAllowedHosts = ["consents.dev", "seers.ai", "seersco.com", "cdn.consents.dev", "cdn.seersco.com"]
 
 private func seersIsAllowedHost(_ urlString: String) -> Bool {
     guard let host = URL(string: urlString)?.host else { return false }
@@ -415,7 +415,7 @@ public final class SeersCMP {
     }
 
     private func fetchConfig(sdkKey: String, ts: Int, completion: @escaping (SeersCMPConfig?) -> Void) {
-        let urlStr = "https://cdn.consents.dev/mobile/configs/\(sdkKey).json?v=\(ts)"
+        let urlStr = "https://cdn.seersco.com/mobile/configs/\(sdkKey).json?v=\(ts)"
         guard let url = URL(string: urlStr) else { completion(nil); return }
         URLSession.shared.dataTask(with: url) { data, response, _ in
             if let http = response as? HTTPURLResponse, http.statusCode == 404 {
