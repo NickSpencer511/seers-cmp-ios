@@ -30,10 +30,26 @@ public struct SeersBannerView: View {
     private var prefText:     Color { bodyColor }
 
     // Font size — read from dashboard exactly like Flutter
-    private var fs: CGFloat        { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
+    private var fs: CGFloat        { min(max(CGFloat(Float(banner?.fontSize ?? "12") ?? 12), 10), 16) }
     private var titleFs: CGFloat   { fs + 2 }   // headings = fs + 2
     private var catNameFs: CGFloat { fs + 1 }   // category names = fs + 1
     private var catBodyFs: CGFloat { fs - 1 }   // category desc = fs - 1
+    private var selectedFontName: String? {
+        let value = (banner?.fontStyle ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if value.isEmpty || value == "none" || value == "inherit" { return nil }
+        switch value {
+        case "arial", "inter", "spezia", "sans-serif": return "Arial"
+        case "serif": return "Times New Roman"
+        case "monospace": return "Menlo"
+        case "cursive": return "Snell Roundhand"
+        case "fantasy": return "Papyrus"
+        default: return value
+        }
+    }
+    private func bannerFont(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        if let selectedFontName { return .custom(selectedFontName, size: size).weight(weight) }
+        return .system(size: size, weight: weight)
+    }
 
     // Button radius — matches Flutter _btnR
     private var btnRadius: CGFloat {
@@ -87,7 +103,7 @@ public struct SeersBannerView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(lang?.body ?? "We use cookies to personalize content and ads, to provide social media features and to analyze our traffic.")
-                    .font(.system(size: fs))
+                    .font(bannerFont(size: fs))
                     .foregroundColor(bodyColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 2)
@@ -103,7 +119,7 @@ public struct SeersBannerView: View {
 
                 if dialogue?.poweredBy ?? true {
                     Text("Powered by Seers")
-                        .font(.system(size: fs * 0.7))
+                        .font(bannerFont(size: fs * 0.7))
                         .foregroundColor(.gray)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -127,11 +143,11 @@ public struct SeersBannerView: View {
                         .padding(.bottom, 6)
                 }
                 Text(lang?.title ?? "We use cookies")
-                    .font(.system(size: titleFs, weight: .bold))
+                    .font(bannerFont(size: titleFs, weight: .bold))
                     .foregroundColor(Color(hex: banner?.titleTextColor ?? "#1a1a1a"))
                     .padding(.bottom, 4)
                 Text(lang?.body ?? "We use cookies to improve your experience.")
-                    .font(.system(size: fs))
+                    .font(bannerFont(size: fs))
                     .foregroundColor(bodyColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 7)
@@ -141,7 +157,7 @@ public struct SeersBannerView: View {
                     if dialogue?.allowReject ?? true {
                         Button(action: { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }) {
                             Text(lang?.btnDisagreeTitle ?? "Decline")
-                                .font(.system(size: fs, weight: .semibold))
+                                .font(bannerFont(size: fs, weight: .semibold))
                                 .foregroundColor(declineText)
                                 .frame(maxWidth: .infinity).padding(4)
                                 .background(declineColor).cornerRadius(btnRadius)
@@ -149,7 +165,7 @@ public struct SeersBannerView: View {
                     }
                     Button(action: { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }) {
                         Text(lang?.btnAgreeTitle ?? "Accept All")
-                            .font(.system(size: fs, weight: .semibold))
+                            .font(bannerFont(size: fs, weight: .semibold))
                             .foregroundColor(agreeText)
                             .frame(maxWidth: .infinity).padding(4)
                             .background(agreeColor).cornerRadius(btnRadius)
@@ -165,7 +181,7 @@ public struct SeersBannerView: View {
 
                 if dialogue?.poweredBy ?? true {
                     Text("Powered by Seers")
-                        .font(.system(size: fs * 0.7)).foregroundColor(.gray)
+                        .font(bannerFont(size: fs * 0.7)).foregroundColor(.gray)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
@@ -179,10 +195,10 @@ public struct SeersBannerView: View {
     private var dialogBanner: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(lang?.title ?? "We use cookies")
-                .font(.system(size: titleFs, weight: .bold))
+                .font(bannerFont(size: titleFs, weight: .bold))
                 .foregroundColor(Color(hex: banner?.titleTextColor ?? "#1a1a1a"))
             Text(lang?.body ?? "We use cookies to improve your experience.")
-                .font(.system(size: fs)).foregroundColor(bodyColor)
+                .font(bannerFont(size: fs)).foregroundColor(bodyColor)
                 .fixedSize(horizontal: false, vertical: true)
             primaryBtn(lang?.btnAgreeTitle ?? "Allow All") { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }
             if dialogue?.allowReject ?? true {
@@ -244,7 +260,7 @@ public struct SeersBannerView: View {
     // btn-pref-full: padding:4px 6px, margin-bottom:3px, border:1px, font-weight:600
     private func prefFullBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label).font(.system(size: fs, weight: .semibold)).foregroundColor(prefText)
+            Text(label).font(bannerFont(size: fs, weight: .semibold)).foregroundColor(prefText)
                 .frame(maxWidth: .infinity).padding(.vertical, 4).padding(.horizontal, 6)
                 .overlay(RoundedRectangle(cornerRadius: btnRadius).stroke(prefText, lineWidth: 1))
         }
@@ -254,7 +270,7 @@ public struct SeersBannerView: View {
     // stk-outline: padding:5px 8px, no margin-bottom (always last), border:1.5px, font-weight:700
     private func outlineBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label).font(.system(size: fs, weight: .bold)).foregroundColor(prefText)
+            Text(label).font(bannerFont(size: fs, weight: .bold)).foregroundColor(prefText)
                 .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 8)
                 .overlay(RoundedRectangle(cornerRadius: btnRadius).stroke(prefText, lineWidth: 1.5))
         }
@@ -263,7 +279,7 @@ public struct SeersBannerView: View {
     // stk-dark: padding:5px 8px, margin-bottom:5px, font-weight:700
     private func darkBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label).font(.system(size: fs, weight: .bold)).foregroundColor(declineText)
+            Text(label).font(bannerFont(size: fs, weight: .bold)).foregroundColor(declineText)
                 .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 8)
                 .background(declineColor).cornerRadius(btnRadius)
         }
@@ -273,7 +289,7 @@ public struct SeersBannerView: View {
     // stk-primary: padding:5px 8px, margin-bottom:5px, font-weight:700
     private func primaryBtn(_ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(label).font(.system(size: fs, weight: .bold))
+            Text(label).font(bannerFont(size: fs, weight: .bold))
                 .foregroundColor(isStroke ? agreeColor : agreeText)
                 .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 8)
                 .background(isStroke ? Color.clear : agreeColor).cornerRadius(btnRadius)
@@ -395,11 +411,32 @@ struct SeersPreferencesView: View {
     private var logoURL: String { payload.dialogue?.logoLink ?? seersDefaultLogoURL }
 
     // Font sizes — same derivation as SeersBannerView
-    private var fs:        CGFloat { CGFloat(Float(banner?.fontSize ?? "14") ?? 14) }
+    private var fs:        CGFloat { min(max(CGFloat(Float(banner?.fontSize ?? "12") ?? 12), 10), 16) }
     private var titleFs:   CGFloat { fs + 2 }
     private var catNameFs: CGFloat { fs + 1 }
     private var catBodyFs: CGFloat { fs - 1 }
     private var arrowFs:   CGFloat { (fs * 0.75).rounded() }
+    private var prefFs: CGFloat { max(fs, 12) }
+    private var prefTitleFs: CGFloat { prefFs + 2 }
+    private var prefCatNameFs: CGFloat { prefFs + 1 }
+    private var prefCatBodyFs: CGFloat { prefFs - 1 }
+    private var prefArrowFs: CGFloat { max((prefFs * 0.75).rounded(), 9) }
+    private var selectedFontName: String? {
+        let value = (banner?.fontStyle ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if value.isEmpty || value == "none" || value == "inherit" { return nil }
+        switch value {
+        case "arial", "inter", "spezia", "sans-serif": return "Arial"
+        case "serif": return "Times New Roman"
+        case "monospace": return "Menlo"
+        case "cursive": return "Snell Roundhand"
+        case "fantasy": return "Papyrus"
+        default: return value
+        }
+    }
+    private func bannerFont(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        if let selectedFontName { return .custom(selectedFontName, size: size).weight(weight) }
+        return .system(size: size, weight: weight)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -415,27 +452,27 @@ struct SeersPreferencesView: View {
                             Spacer()
                         }
                         Button(action: { withAnimation { showPreferences = false } }) {
-                            Text("✕").font(.system(size: fs, weight: .bold)).foregroundColor(titleColor)
+                            Text("✕").font(bannerFont(size: prefFs, weight: .bold)).foregroundColor(titleColor)
                         }
                     }
                     .padding(.bottom, 2)
 
                     // pref-title: font-weight:700, fs+2
                     Text(lang?.aboutCookies ?? "About Our Cookies")
-                        .font(.system(size: titleFs, weight: .bold))
+                        .font(bannerFont(size: prefTitleFs, weight: .bold))
                         .foregroundColor(titleColor)
                         .padding(.bottom, 4)
 
                     // pref-body: fs-1 (catBodyFs), opacity:0.85, line-height:1.4
                     Text(lang?.body ?? "We use cookies to personalize content and ads.")
-                        .font(.system(size: fs))
+                        .font(bannerFont(size: prefFs))
                         .foregroundColor(textColor.opacity(0.85))
-                        .lineSpacing(fs * 0.4)
+                        .lineSpacing(prefFs * 0.45)
                         .padding(.bottom, 4)
 
                     // pref-policy-link: fs, font-weight:600, underline, agree_btn_color
                     Text("Read Cookie Policy ↗")
-                        .font(.system(size: fs, weight: .semibold))
+                        .font(bannerFont(size: prefFs, weight: .semibold))
                         .foregroundColor(accentColor)
                         .underline()
                         .padding(.bottom, 6)
@@ -443,20 +480,20 @@ struct SeersPreferencesView: View {
                     // pref-allow-btn: padding:4px 6px, font-weight:700, border-radius:4px
                     Button(action: { saveConsent(value: "agree", pref: true, stat: true, mkt: true) }) {
                         Text(lang?.btnAgreeTitle ?? "Allow All")
-                            .font(.system(size: fs, weight: .bold))
+                            .font(bannerFont(size: prefFs, weight: .bold))
                             .foregroundColor(agreeTextClr)
-                            .frame(maxWidth: .infinity).padding(.vertical, 4).padding(.horizontal, 6)
-                            .background(accentColor).cornerRadius(4)
+                            .frame(maxWidth: .infinity, minHeight: 36).padding(.vertical, 6).padding(.horizontal, 10)
+                            .background(accentColor).cornerRadius(6)
                     }
                     .padding(.bottom, 4)
 
                     // pref-disable-btn: padding:4px 6px, font-weight:700, border-radius:4px
                     Button(action: { saveConsent(value: "disagree", pref: false, stat: false, mkt: false) }) {
                         Text(lang?.btnDisagreeTitle ?? "Disable All")
-                            .font(.system(size: fs, weight: .bold))
+                            .font(bannerFont(size: prefFs, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(maxWidth: .infinity).padding(.vertical, 4).padding(.horizontal, 6)
-                            .background(Color(hex: "#1a1a2e")).cornerRadius(4)
+                            .frame(maxWidth: .infinity, minHeight: 36).padding(.vertical, 6).padding(.horizontal, 10)
+                            .background(Color(hex: "#1a1a2e")).cornerRadius(6)
                     }
                     .padding(.bottom, 8)
 
@@ -483,10 +520,10 @@ struct SeersPreferencesView: View {
                     // pref-save-btn: padding:5px 6px, font-weight:700, border-radius:4px
                     Button(action: { saveConsent(value: "custom", pref: prefOn, stat: statOn, mkt: mktOn) }) {
                         Text(lang?.btnSaveMyChoices ?? "Save my choices")
-                            .font(.system(size: fs, weight: .bold))
+                            .font(bannerFont(size: prefFs, weight: .bold))
                             .foregroundColor(agreeTextClr)
-                            .frame(maxWidth: .infinity).padding(.vertical, 5).padding(.horizontal, 6)
-                            .background(accentColor).cornerRadius(4)
+                            .frame(maxWidth: .infinity, minHeight: 38).padding(.vertical, 7).padding(.horizontal, 10)
+                            .background(accentColor).cornerRadius(6)
                     }
                     .padding(12)
                     .background(bgColor)
@@ -495,8 +532,8 @@ struct SeersPreferencesView: View {
                 }
             }
         )
-        .cornerRadius(16, corners: [.topLeft, .topRight])
-        .frame(maxHeight: UIScreen.main.bounds.height * 0.85)
+        .cornerRadius(18, corners: [.topLeft, .topRight])
+        .frame(maxHeight: UIScreen.main.bounds.height * 0.92)
     }
 
     @ViewBuilder
@@ -507,25 +544,25 @@ struct SeersPreferencesView: View {
             HStack(spacing: 3) {
                 // pref-cat-arrow: arrowFs, rotates 90deg when open
                 Text("▶")
-                    .font(.system(size: arrowFs))
+                    .font(bannerFont(size: prefArrowFs))
                     .foregroundColor(accentColor)
                     .rotationEffect(.degrees(expanded.contains(key) ? 90 : 0))
                     .animation(.easeInOut(duration: 0.2), value: expanded.contains(key))
                 // pref-cat-name: catNameFs (fs+1), font-weight:600
                 Text(label)
-                    .font(.system(size: catNameFs, weight: .semibold))
+                    .font(bannerFont(size: prefCatNameFs, weight: .semibold))
                     .foregroundColor(textColor)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if isAlwaysActive {
                     // pref-always-active: fs, font-weight:600
                     Text(lang?.alwaysActive ?? "Always Active")
-                        .font(.system(size: fs, weight: .semibold))
+                        .font(bannerFont(size: prefCatBodyFs, weight: .semibold))
                         .foregroundColor(accentColor)
                 } else {
                     Toggle("", isOn: isOn).labelsHidden().tint(accentColor)
                 }
             }
-            .padding(.horizontal, 5).padding(.vertical, 4)
+            .padding(.horizontal, 10).padding(.vertical, 8)
             .contentShape(Rectangle())
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.22)) {
@@ -536,11 +573,11 @@ struct SeersPreferencesView: View {
             // pref-cat-body: padding:3px 7px 4px, catBodyFs (fs-1), opacity:0.8, border-top:1px #f0f0f0
             if expanded.contains(key) {
                 Text(descriptionFor(key: key))
-                    .font(.system(size: catBodyFs))
+                    .font(bannerFont(size: prefCatBodyFs))
                     .foregroundColor(textColor.opacity(0.8))
-                    .lineSpacing(catBodyFs * 0.5)
+                    .lineSpacing(prefCatBodyFs * 0.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 7).padding(.top, 3).padding(.bottom, 4)
+                    .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 9)
                     .background(Color.black.opacity(0.02))
                     .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#f0f0f0")), alignment: .top)
             }

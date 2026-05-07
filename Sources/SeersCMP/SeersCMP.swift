@@ -1590,13 +1590,13 @@ public struct SeersCMPBanner: Codable {
     public let bannerBgColor: String?; public let agreeBtnColor: String?; public let agreeTextColor: String?
     public let disagreeBtnColor: String?; public let disagreeTextColor: String?
     public let preferencesTextColor: String?; public let titleTextColor: String?; public let bodyTextColor: String?
-    public let fontSize: String?; public let buttonType: String?; public let layout: String?; public let position: String?
+    public let fontSize: String?; public let fontStyle: String?; public let buttonType: String?; public let layout: String?; public let position: String?
     enum CodingKeys: String, CodingKey {
         case bannerBgColor = "banner_bg_color"; case agreeBtnColor = "agree_btn_color"
         case agreeTextColor = "agree_text_color"; case disagreeBtnColor = "disagree_btn_color"
         case disagreeTextColor = "disagree_text_color"; case preferencesTextColor = "preferences_text_color"
         case titleTextColor = "title_text_color"; case bodyTextColor = "body_text_color"
-        case fontSize = "font_size"; case buttonType = "button_type"; case layout, position
+        case fontSize = "font_size"; case fontStyle = "font_style"; case buttonType = "button_type"; case layout, position
     }
 }
 
